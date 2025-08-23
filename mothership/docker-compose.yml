@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  motioneye:
+    image: ccrisan/motioneye:master-armhf
+    container_name: motioneye
+    restart: always
+    ports:
+      - "8765:8765"
+      - "8081:8081"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/motioneye:/etc/motioneye
+      - /var/lib/motioneye:/var/lib/motioneye
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    command: tunnel --no-autoupdate run --token <TOKEN>

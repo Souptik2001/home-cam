@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  motioneye:
+    image: ccr.ccs.tencentyun.com/motioneye/motioneye:master-armhf
+    container_name: motioneye
+    restart: always
+    ports:
+      - "8765:8765"
+      - "8081:8081"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/motioneye:/etc/motioneye
+      - /var/lib/motioneye:/var/lib/motioneye
+      # Configuration for 1st camera - we will have one camera per child.
+      - ./camera.conf:/etc/motioneye/camera-1.conf
+    devices:
+      - /dev/video0:/dev/video0

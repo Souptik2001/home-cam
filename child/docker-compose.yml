@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   motioneye:
     image: ccrisan/motioneye:master-armhf

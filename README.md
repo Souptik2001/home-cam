@@ -27,6 +27,7 @@ Let's set it up as the mothership.
 - Ok now you have Docker installed!
 - Now go ahead and clone this repository - `git clone https://github.com/Souptik2001/home-cam.git`.
 - Now go ahead and open `mothership/docker-compose.yml`, using any editor you want and make the following changes -
+  - In the `ntfy` service, go ahead and modify the `<THIS_SERVICE_PUBLIC_URL>`, with this service's public URL, so suppose you get it on `mynotify.dev`, then `http://mynotify.dev`.
   - In the `cloudflared` service, go ahead and modify the `<TOKEN>` with your Cloudflare tunnel token.
 - Now just run the docker compose - `docker compose up`.
 - And volah! It's done!

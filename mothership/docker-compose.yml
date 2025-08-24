@@ -1,4 +1,6 @@
-version: "3.9"
+networks:
+  proxynet:
+    driver: bridge
 
 services:
   motioneye:
@@ -12,6 +14,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /etc/motioneye:/etc/motioneye
       - /var/lib/motioneye:/var/lib/motioneye
+    networks:
+      - proxynet
 
   ntfy:
     image: binwiederhier/ntfy
@@ -21,6 +25,15 @@ services:
     volumes:
       - /var/cache/ntfy:/var/cache/ntfy
       - /etc/ntfy:/etc/ntfy
+    environment:
+      NTFY_BASE_URL: <THIS_SERVICE_PUBLIC_URL>
+      NTFY_UPSTREAM_BASE_URL: https://ntfy.sh # This is for fixing the push notifications for IOS, don't worry, this doesn't mean our messages will go through ntfy server.
+      NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
+      NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      NTFY_BEHIND_PROXY: true
+      NTFY_ATTACHMENT_CACHE_DIR: /var/lib/ntfy/attachments
+      NTFY_ENABLE_LOGIN: true
     ports:
       - 8080:80
     healthcheck:
@@ -30,9 +43,13 @@ services:
         retries: 3
         start_period: 40s
     restart: unless-stopped
+    networks:
+      - proxynet
 
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
     restart: always
     command: tunnel --no-autoupdate run --token <TOKEN>
+    networks:
+      - proxynet

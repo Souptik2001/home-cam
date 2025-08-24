@@ -25,6 +25,7 @@ services:
     volumes:
       - /var/cache/ntfy:/var/cache/ntfy
       - /etc/ntfy:/etc/ntfy
+      - /var/lib/ntfy:/var/lib/ntfy
     environment:
       NTFY_BASE_URL: <THIS_SERVICE_PUBLIC_URL>
       NTFY_UPSTREAM_BASE_URL: https://ntfy.sh # This is for fixing the push notifications for IOS, don't worry, this doesn't mean our messages will go through ntfy server.

@@ -7,9 +7,10 @@ services:
     image: ccrisan/motioneye:master-armhf
     container_name: motioneye
     restart: always
-    ports:
-      - "8765:8765"
-      - "8081:8081"
+    # Uncomment this for debugging purpose or if you you are not using public domain.
+    # ports:
+    #   - "8765:8765"
+    #   - "8081:8081"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/motioneye:/etc/motioneye
@@ -35,8 +36,9 @@ services:
       NTFY_BEHIND_PROXY: true
       NTFY_ATTACHMENT_CACHE_DIR: /var/lib/ntfy/attachments
       NTFY_ENABLE_LOGIN: true
-    ports:
-      - 8080:80
+    # Uncomment this for debugging purpose or if you you are not using public domain.
+    # ports:
+    #   - 8080:80
     healthcheck:
         test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:8080/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
         interval: 60s

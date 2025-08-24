@@ -1,7 +1,9 @@
-# Home Camera System
+# My DIY Home Camera System 🏡🎥
 
 ## Pre-requirements
 
+- A powerful Raspberry PI for your mothership - preferably Raspberry PI 4 or 5.
+- "n" number of [Raspberry PI 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) and [Raspberry PI camera module 2](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) - the number depends on how many child nodes you want.
 - A domain you own.
 - Cloudflare account (you can create a free one, you just need to add a payment option, but it will not be charged for what we will use it for).
 
@@ -59,11 +61,13 @@ Let's set it up as the mothership.
     - Comment out or remove the whole `cloudflared` service.
     - Uncomment the two lines mentioned mentioned in the file.
     - Comment out the line which contains - `<THIS_SERVICE_PUBLIC_URL>`.
-- Now just run the docker compose - `docker compose up`.
+- Now `cd` into the `mothership` folder, and just run the docker compose - `docker compose up`.
 - And volah! It's done! 🎉
 
 If you have opted for public URL then your camera web UI is accessible on - `xyz.yourdomain.com` (the name you setup on Cloudflare tunnel).
 If you have not opted for public URL then your camera web UI is accessible on - `home.local:8765` (the hostname you have set for your PI) - considering you are connected to the same internet your PI is connected to.
+
+🚨⚠️ Be sure to change the admin and user credentials for the motioneye service. Because its exposed to internet and without proper credentials anyone can.. literally spy on you! 🚨
 
 ### NTFY setup
 
@@ -75,6 +79,33 @@ This is kind of a sub-step inside mothership setup. Once you are done with all a
 - It will prompt for password, enter the password.
 - And done! Your user is now created! 🎉
 
-## Child setup
+## Child nodes setup
 
-On its way.. 👀
+Same steps for each of the child nodes -
+
+- Connect your Camera module 2 to the `CSI-2 camera connector` port of your PI.
+- Do all the same steps as you have done above for mothership till cloning this repository.
+- Next just go ahead and `cd` into the mothership folder and run `docker compose up`.
+- And volah! It's done! 🎉
+
+🚨⚠️ Be sure to change the admin and user credentials for the motioneye service. Although this is not exposed to internet as mothership, but anyone connected to your local network (i.e basically the same network your PI is connected to), can visit `camera-1.local:8765` and see the feed. 🚨
+
+### Special door bell child node setup
+
+On its way... 👀
+
+### Adding into child nodes to your mothership's motioneye dashboard
+
+- Go to your mothership motion eye dashboard.
+- Login.
+- Click on add camera.
+- Select Camera type as "Remote motionEye Camera".
+- Then in URL provide the child camera local URL. So, if your child camera hostname is `camera-1.local`, then in that field provide `http://camera-1.local:8081` (`8081` is the proxy port).
+- Then provide username and password for that child node you have set.
+- And the last camera field should be automatically selected.
+- Now just go ahead and click "OK".
+- And now you should see the child node's camera feed here! 🎉
+
+## Battle-tested?
+
+Will be in few months! 😉

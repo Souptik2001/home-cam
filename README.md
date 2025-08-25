@@ -61,7 +61,7 @@ Let's set it up as the mothership.
     - Comment out or remove the whole `cloudflared` service.
     - Uncomment the two lines mentioned mentioned in the file.
     - Comment out the line which contains - `<THIS_SERVICE_PUBLIC_URL>`.
-- Now `cd` into the `mothership` folder, and just run the docker compose - `docker compose up`.
+- Now `cd` into the `mothership` folder, and just run the docker compose - `docker compose up -d`.
 - And volah! It's done! 🎉
 
 If you have opted for public URL then your camera web UI is accessible on - `xyz.yourdomain.com` (the name you setup on Cloudflare tunnel).
@@ -85,14 +85,24 @@ Same steps for each of the child nodes -
 
 - Connect your Camera module 2 to the `CSI-2 camera connector` port of your PI.
 - Do all the same steps as you have done above for mothership till cloning this repository.
-- Next just go ahead and `cd` into the mothership folder and run `docker compose up`.
+- Next just go ahead and `cd` into the mothership folder and run `docker compose up -d`.
 - And volah! It's done! 🎉
 
 🚨⚠️ Be sure to change the admin and user credentials for the motioneye service. Although this is not exposed to internet as mothership, but anyone connected to your local network (i.e basically the same network your PI is connected to), can visit `camera-1.local:8765` and see the feed. 🚨
 
 ### Special door bell child node setup
 
-On its way... 👀
+For the special door bell child node, everything else remains the same, plus just two extra steps -
+
+Hardware step -
+
+On the way... 👀
+
+Software step -
+
+- Go to `child/door-bell`.
+- And just run `docker compose up -d`.
+- This will start the script to listen for the door bell ring signal, and it's done!
 
 ### Adding into child nodes to your mothership's motioneye dashboard
 

@@ -1,0 +1,6 @@
+services:
+  gpio-listener:
+    build: ./gpio-listener
+    restart: unless-stopped
+    devices:
+      - /dev/gpiomem:/dev/gpiomem

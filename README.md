@@ -75,10 +75,19 @@ This is kind of a sub-step inside mothership setup. Once you are done with all a
 
 - Run `docker exec -it ntfy sh`.
 - With this you hop on to a shell inside your ntfy container.
-- Now run - `ntfy user add --role=<admin_or_user> home`
-- Now run - `ntfy token add home` - note this token, this will be required in "door bell child node" setup.
-- It will prompt for password, enter the password.
-- And done! Your user is now created! 🎉
+- Now run - `ntfy user add --role=<admin_or_user> <any_user_name>`
+- - It will prompt for password, enter the password.
+- Now run - `ntfy token add <user_name_you_created_above>` - note this token, this will be required in "door bell child node" setup.
+- Now run - `ntfy access home home rw` - so with this we are setting our user `home` to only access the topic `home`, to which our door bell script will send notifications.
+- Now get your phone and download `ntfy` app from PlayStore or AppleStore.
+  - Click on "subscribe to topic" (i.e the plus icon on the bottom).
+  - Add the topic name as `home`.
+  - And check "use another server".
+  - Enter your ntfy server URL.
+  - Now once you press "subscribe", it will prompt you for username and password.
+  - So, enter `home` and the password you created and click done!
+- Do the same with any other phone you want to get notifications on.
+- And done! You will now get notifications on your phone! 🎉
 
 ## Child nodes setup
 

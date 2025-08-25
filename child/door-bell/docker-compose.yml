@@ -2,5 +2,12 @@ services:
   gpio-listener:
     build: ./gpio-listener
     restart: unless-stopped
-    devices:
-      - /dev/gpiomem:/dev/gpiomem
+    # devices:
+    #   - /dev/gpiomem:/dev/gpiomem
+    privileged: true
+    environment:
+      - GPIOZERO_PIN_FACTORY=pigpio
+      - NOTIFY_API_URL=<NOTIFY_API_URL>
+      - NOTIFY_API_TOKEN=<NOTIFY_API_TOKEN>
+      - CAMERA_FEED_URL=<CAMERA_FEED_URL>
+    network_mode: host

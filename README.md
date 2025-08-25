@@ -75,7 +75,8 @@ This is kind of a sub-step inside mothership setup. Once you are done with all a
 
 - Run `docker exec -it ntfy sh`.
 - With this you hop on to a shell inside your ntfy container.
-- Now run - `ntfy user add --role=<admin_or_user> <any_user_name>`.
+- Now run - `ntfy user add --role=<admin_or_user> home`
+- Now run - `ntfy token add home` - note this token, this will be required in "door bell child node" setup.
 - It will prompt for password, enter the password.
 - And done! Your user is now created! 🎉
 
@@ -100,7 +101,13 @@ On the way... 👀
 
 Software step -
 
+- Install `pigpio` library - `sudo apt install pigpio` (just FYI, this is required as we are running this script in docker).
+- Start the `pigpio` daemon - `sudo systemctl start pigpiod` and enable it for auto-starting on system boot - `sudo systemctl enable pigpiod`.
 - Go to `child/door-bell`.
+- Open `docker-compose.yml` file and change the following things -
+  - `<NOTIFY_API_URL>` - the NTFY URL (with no trailing slash)
+  - `<NOTIFY_API_TOKEN>` - the NTFY API Token for the user your generated above.
+  - `<CAMERA_FEED_URL>` - your camera feed URL.
 - And just run `docker compose up -d`.
 - This will start the script to listen for the door bell ring signal, and it's done!
 

@@ -32,6 +32,7 @@ Assuming you have already setup your cloudflare account and linked your domain t
 💡 For mothership go with a stronger PI, like PI 4 or 5.
 
 So! You got your fresh PI?!
+
 Let's set it up as the mothership.
 
 - Flash the Raspberry PI OS using Raspberry PI imager (or whatever method you prefer).
@@ -65,6 +66,7 @@ Let's set it up as the mothership.
 - And volah! It's done! 🎉
 
 If you have opted for public URL then your camera web UI is accessible on - `xyz.yourdomain.com` (the name you setup on Cloudflare tunnel).
+
 If you have not opted for public URL then your camera web UI is accessible on - `home.local:8765` (the hostname you have set for your PI) - considering you are connected to the same internet your PI is connected to.
 
 🚨⚠️ Be sure to change the admin and user credentials for the motioneye service. Because its exposed to internet and without proper credentials anyone can.. literally spy on you! 🚨
@@ -107,7 +109,9 @@ For the special door bell child node, everything else remains the same, plus jus
 Hardware step -
 
 We need to make some GPIO pins connection for this. [Here is the GPIO pins layout](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#gpio) for Raspberry PI.
+
 💡 It is same for all Raspberry PI models, but if you want specifically for any model you can just Google it. For this node we will use Raspberry PI zero 2 W.
+
 Ok now so let's start with the steps -
 
 - So, our main target is to somehow give a quick one touch connection between one of the GPIO pin (in our case we will be using 17) and a ground pin of the PI.

@@ -3,7 +3,7 @@
 ## Pre-requirements
 
 - A powerful Raspberry PI for your mothership - preferably Raspberry PI 4 or 5.
-- "n" number of [Raspberry PI 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) and [Raspberry PI camera module 2](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) - the number depends on how many child nodes you want.
+- "n" number of [Raspberry PI Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) and [Raspberry PI camera module 2](https://www.raspberrypi.com/products/camera-module-v2/) - the number depends on how many child nodes you want.
 - A domain you own.
 - Cloudflare account (you can create a free one, you just need to add a payment option, but it will not be charged for what we will use it for).
 
@@ -106,7 +106,20 @@ For the special door bell child node, everything else remains the same, plus jus
 
 Hardware step -
 
-On the way... 👀
+We need to make some GPIO pins connection for this. [Here is the GPIO pins layout](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#gpio) for Raspberry PI.
+💡 It is same for all Raspberry PI models, but if you want specifically for any model you can just Google it. For this node we will use Raspberry PI zero 2 W.
+Ok now so let's start with the steps -
+
+- So, our main target is to somehow give a quick one touch connection between one of the GPIO pin (in our case we will be using 17) and a ground pin of the PI.
+- So, here is how I did it. You can do it in some other way if you want.
+- Connect two jumper wires to the GPIO 17 and a ground PIN on the PI side.
+- The other end of the jumper wires will be connected to a relay. The relay will be connected to the door bell directly.
+- So, you see? The relay acts as the separation between the door bell circuit and the raspberry PI, so that we don't have to care about stepping down door bell voltage and all.
+- So, whenever the door bell is rang, it powers up the relay, which causes one quick contact in relay, exactly what we want.
+- So, the GPIO and the ground pin joins for one causing low voltage in the GPIO pin, exactly what we want.
+- This is then detected by the script which you will run below and it fires up the notification! Done with electrical setup! ⚡️
+
+💡 If before directly connecting to the door bell, relay, etc. you want to give a quick test, then connect two jumper wires in GPIO and ground pin respectively. And then just touch the other end (male side) of the jumpers, just once quickly, to emulate the relay contact behaviour and trigger the notification.
 
 Software step -
 

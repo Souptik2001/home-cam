@@ -24,6 +24,7 @@ def action_on_door_bell_ring():
             data=f"Someone is at the door. [Check here]({camera_feed_url}).",
             headers={
                 "Tags": "bell,door",
+                "Priority": "5",
                 "Markdown": "yes",
                 "Authorization": "Bearer " + api_token
             })

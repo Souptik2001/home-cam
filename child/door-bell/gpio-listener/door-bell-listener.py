@@ -20,7 +20,7 @@ def action_on_door_bell_ring():
     print("Door bell rang... Executing actions...", flush=True)
 
     try:
-        response = requests.post(api_url + "/home",
+        response = requests.post(api_url + "/home-cam",
             data=f"Someone is at the door. [Check here]({camera_feed_url}).",
             headers={
                 "Tags": "bell,door",

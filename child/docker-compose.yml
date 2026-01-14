@@ -5,9 +5,9 @@ services:
     restart: always
     network_mode: host
     volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - ./etc/motioneye:/etc/motioneye
-      - ./var/lib/motioneye:/var/lib/motioneye
+      - ./config:/etc/motioneye
+      - ./media:/var/lib/motioneye
+      - ./cameras:/etc/motion
     devices:
       - /dev/video0:/dev/video0
     privileged: true

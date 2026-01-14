@@ -97,8 +97,18 @@ Same steps for each of the child nodes -
 
 - Connect your Camera module 2 to the `CSI-2 camera connector` port of your PI.
 - Do all the same steps as you have done above for mothership till cloning this repository.
-- Next just go ahead and `cd` into the child folder and run `docker compose up -d`.
-- And volah! It's done! 🎉
+
+### Tailscale Setup (Optional)
+
+If your mothership is running in a VM or on a different network, you can use Tailscale to connect your child nodes to the mothership.
+
+- First, you need to get a Tailscale auth key. You can get one from the [Tailscale admin console](https://login.tailscale.com/admin/settings/keys).
+- Now, open the `child/docker-compose.yml` file and make the following changes:
+  - In the `tailscale` service, replace `<CHILD_HOSTNAME>` with the desired hostname for your child node in the Tailscale network.
+  - Replace `<TAILSCALE_AUTH_KEY>` with the auth key you generated.
+- Now, `cd` into the `child` folder and run `docker compose up -d`. This will start the `motioneye` and `tailscale` services.
+- After the `tailscale` service starts, you should see the child node in your Tailscale admin console.
+- You can now access the child node's camera feed using the Tailscale IP address of the child node. For example, if the Tailscale IP of the child node is `100.x.y.z`, then the camera feed will be accessible at `http://100.x.y.z:8081`.
 
 🚨⚠️ Be sure to change the admin and user credentials for the motioneye service. Although this is not exposed to internet as mothership, but anyone connected to your local network (i.e basically the same network your PI is connected to), can visit `camera-1.local:8765` and see the feed. 🚨
 
@@ -125,6 +135,18 @@ Ok now so let's start with the steps -
 
 💡 If before directly connecting to the door bell, relay, etc. you want to give a quick test, then connect two jumper wires in GPIO and ground pin respectively. And then just touch the other end (male side) of the jumpers, just once quickly, to emulate the relay contact behaviour and trigger the notification.
 
+#### Tailscale Setup (Optional)
+
+If your mothership is running in a VM or on a different network, you can use Tailscale to connect your door-bell node to the mothership.
+
+- First, you need to get a Tailscale auth key. You can get one from the [Tailscale admin console](https://login.tailscale.com/admin/settings/keys).
+- Now, open the `child/door-bell/docker-compose.yml` file and make the following changes:
+  - In the `tailscale` service, replace `<DOOR_BELL_HOSTNAME>` with the desired hostname for your door-bell node in the Tailscale network.
+  - Replace `<TAILSCALE_AUTH_KEY>` with the auth key you generated.
+- Now, `cd` into the `child/door-bell` folder and run `docker compose up -d`. This will start the `gpio-listener` and `tailscale` services.
+- After the `tailscale` service starts, you should see the door-bell node in your Tailscale admin console.
+- The `gpio-listener` service will now be able to communicate with the mothership over the Tailscale network.
+
 Software step -
 
 - Install `pigpio` library - `sudo apt install pigpio` (just FYI, this is required as we are running this script in docker).
@@ -134,8 +156,7 @@ Software step -
   - `<NOTIFY_API_URL>` - the NTFY URL (with no trailing slash)
   - `<NOTIFY_API_TOKEN>` - the NTFY API Token for the user your generated above.
   - `<CAMERA_FEED_URL>` - your camera feed URL.
-- And just run `docker compose up -d`.
-- This will start the script to listen for the door bell ring signal, and it's done!
+- Now, `cd` into the `child/door-bell` folder and run `docker compose up -d`. This will start the `gpio-listener` and `tailscale` services.
 
 ### Adding into child nodes to your mothership's motioneye dashboard
 

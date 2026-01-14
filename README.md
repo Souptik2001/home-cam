@@ -97,7 +97,7 @@ Same steps for each of the child nodes -
 
 - Connect your Camera module 2 to the `CSI-2 camera connector` port of your PI.
 - Do all the same steps as you have done above for mothership till cloning this repository.
-- Next just go ahead and `cd` into the mothership folder and run `docker compose up -d`.
+- Next just go ahead and `cd` into the child folder and run `docker compose up -d`.
 - And volah! It's done! 🎉
 
 🚨⚠️ Be sure to change the admin and user credentials for the motioneye service. Although this is not exposed to internet as mothership, but anyone connected to your local network (i.e basically the same network your PI is connected to), can visit `camera-1.local:8765` and see the feed. 🚨

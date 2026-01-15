@@ -2,9 +2,6 @@ networks:
   proxynet:
     driver: bridge
 
-volumes:
-  tailscale-state:
-
 services:
   motioneye:
     image: ccrisan/motioneye:master-armhf
@@ -59,19 +56,3 @@ services:
     command: tunnel --no-autoupdate run --token <TOKEN>
     networks:
       - proxynet
-  
-  tailscale:
-    image: tailscale/tailscale
-    container_name: tailscale-mothership
-    hostname: <MOTHERSHIP_HOSTNAME> # This will be the name of the mothership in the tailnet
-    environment:
-      - TS_AUTHKEY=<TAILSCALE_AUTH_KEY>
-      - TS_STATE_DIR=/var/lib/tailscale
-    volumes:
-      - tailscale-state:/var/lib/tailscale
-      - /dev/net/tun:/dev/net/tun
-    network_mode: host
-    cap_add:
-      - net_admin
-      - sys_module
-    restart: unless-stopped

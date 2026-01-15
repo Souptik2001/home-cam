@@ -8,10 +8,8 @@ services:
       - "8081:8081"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /etc/motioneye:/etc/motioneye
       - /var/lib/motioneye:/var/lib/motioneye
-      # Configuration for 1st camera - we will have one camera per child.
-      - ./camera.conf:/etc/motioneye/camera-1.conf
+      - ./motioneye-config:/etc/motioneye
     devices:
       - /dev/video0:/dev/video0
 

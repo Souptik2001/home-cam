@@ -10,7 +10,6 @@ services:
       - ./var/lib/motioneye:/var/lib/motioneye
     devices:
       - /dev/video0:/dev/video0
-    privileged: true
 
   tailscale:
     image: tailscale/tailscale

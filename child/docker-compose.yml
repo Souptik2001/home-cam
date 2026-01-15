@@ -3,7 +3,9 @@ services:
     image: ccrisan/motioneye:master-armhf
     container_name: motioneye
     restart: always
-    network_mode: host
+    ports:
+      - "8765:8765"
+      - "8081:8081"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/motioneye:/etc/motioneye

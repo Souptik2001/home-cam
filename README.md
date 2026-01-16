@@ -152,7 +152,7 @@ Software step -
 - Login.
 - Click on add camera.
 - Select Camera type as "Remote motionEye Camera".
-- Then in URL provide the child camera local URL. So, if your child camera hostname is `camera-1.local`, then in that field provide `http://camera-1.local:8081` (`8081` is the proxy port).
+- Then in URL provide the child camera local URL. So, if your child camera hostname is `camera-1.local`, then in that field provide `http://camera-1.local:8765`.
 - Then provide username and password for that child node you have set.
 - And the last camera field should be automatically selected.
 - Now just go ahead and click "OK".

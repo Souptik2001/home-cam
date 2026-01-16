@@ -3,9 +3,9 @@ services:
     image: ccrisan/motioneye:master-armhf
     container_name: motioneye
     restart: always
-    ports:
-      - "8765:8765"
-      - "8081:8081"
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/motioneye:/var/lib/motioneye
@@ -28,3 +28,6 @@ services:
       - net_admin
       - sys_module
     restart: unless-stopped
+    ports:
+      - "8765:8765"
+      - "8081:8081"

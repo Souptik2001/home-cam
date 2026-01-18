@@ -10,7 +10,6 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/motioneye:/var/lib/motioneye
       - ./motioneye-config:/etc/motioneye
-      - ./camera-stream.service:/etc/systemd/system/camera-stream.service
     devices:
       - /dev/video0:/dev/video0
 

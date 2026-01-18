@@ -117,11 +117,17 @@ If you are using camera module instead of a USB webcam, which is most probably t
     - Select `<Show>` next to IPv4 Configuration.
     - Addresses: Enter the IP you are currently using (since you know it works).
       - Format: 192.168.1.50/24 (The /24 is important, it represents the Subnet Mask 255.255.255.0).
-    - Gateway: Enter your router's IP (usually 192.168.1.1).
+    - Gateway: Enter your router's IP (for JioFiber its for example - 192.168.29.1).
+      - To know this value in mac run - `route -n get default | grep gateway`
+      - To know this value in Windows run - `ip route | grep default`
     - DNS servers: Enter 8.8.8.8 (Google) or 1.1.1.1 (Cloudflare).
     - Scroll down to the bottom and select `<OK>`.
     - Hit `<Back>`, then Quit.
     - Reboot your Pi (sudo reboot) to confirm it sticks.
+  - Run the camera-stream service automatically.
+    - On your Raspberry PI -
+    - Copy the `camera-stream.service` to `/etc/systemd/system/camera-stream.service`.
+    - Run `sudo systemctl daemon-reload`, then `sudo systemctl enable camera-stream.service` and `sudo systemctl restart camera-stream.service`.
 
 ### Tailscale Setup (Optional)
 

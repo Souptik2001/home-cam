@@ -98,6 +98,31 @@ Same steps for each of the child nodes -
 - Connect your Camera module 2 to the `CSI-2 camera connector` port of your PI.
 - Do all the same steps as you have done above for mothership till cloning this repository.
 
+## If you are using the camera module
+
+If you are using camera module instead of a USB webcam, which is most probably the case in most case, then -
+
+- Go to the child motioneye front-end. Remove the auto-added camera (which would be broken).
+- Run this command on your PI - `rpicam-vid -t 0 --inline --width 1280 --height 720 --framerate 30 --codec mjpeg -o - | cvlc stream:///dev/stdin --sout '#standard{access=http{mime=multipart/x-mixed-replace;boundary=--7b3cc56e5f51db803f790dad720ed50a},mux=mpjpeg,dst=:8888}' :demux=mjpeg`
+- Add a new camera in motion eye.
+  - Select "Network Camera".
+  - Add this URL - `http:<lan_IP>:8888` (you can get the lan IP using `hostname -I`, which starts with `197.168.`)
+- Ok this works fine, but there are few automations and fixes which we need to do so that things don't break automatically.
+  - Setting constant IP address for the child.
+    - Run `sudo nmtui`
+    - Click "Edit a connection".
+    - Select your active connection (usually named Wired connection 1 or preconfigured).
+    - Use the arrow keys to navigate to IPv4 CONFIGURATION.
+    - Change `<Automatic>` to `<Manual>`.
+    - Select `<Show>` next to IPv4 Configuration.
+    - Addresses: Enter the IP you are currently using (since you know it works).
+      - Format: 192.168.1.50/24 (The /24 is important, it represents the Subnet Mask 255.255.255.0).
+    - Gateway: Enter your router's IP (usually 192.168.1.1).
+    - DNS servers: Enter 8.8.8.8 (Google) or 1.1.1.1 (Cloudflare).
+    - Scroll down to the bottom and select `<OK>`.
+    - Hit `<Back>`, then Quit.
+    - Reboot your Pi (sudo reboot) to confirm it sticks.
+
 ### Tailscale Setup (Optional)
 
 If your mothership is running in a VM or on a different network, you can use Tailscale to connect your child nodes to the mothership.

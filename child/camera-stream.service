@@ -1,0 +1,18 @@
+[Unit]
+Description=Rpicam MJPEG Streamer
+After=network.target
+
+[Service]
+# Uses /bin/sh to allow the pipe (|) between the camera and VLC
+ExecStart=/bin/sh -c "rpicam-vid -t 0 --inline --width 1280 --height 720 --framerate 30 --codec mjpeg -o - | cvlc stream:///dev/stdin --sout '#standard{access=http{mime=multipart/x-mixed-replace;boundary=FRAME},mux=mpjpeg,dst=:8888}' :demux=mjpeg"
+
+# Restart automatically if it crashes
+Restart=always
+RestartSec=5
+
+# Run as the default user (ensure this user is in the 'video' group)
+User=admin
+Group=video
+
+[Install]
+WantedBy=multi-user.target

@@ -25,6 +25,12 @@ cameras:
       height: 720
       fps: 5
 
+    review:
+      alerts:
+        cutoff_time: 40
+      detections:
+        cutoff_time: 30
+
     record:
       enabled: true
       continuous:
@@ -32,10 +38,14 @@ cameras:
       motion:
         days: 7 # Any segment containing motion will be retained for 7 days.
       alerts:
+        pre_capture: 5
+        post_capture: 5
         retain:
           days: 7 # Any segment containing alerts - not any useful object in the shot will be retained for 7 days.
           mode: motion
       detections:
+        pre_capture: 5
+        post_capture: 5
         retain:
           days: 7 # Any segment containing useful detection will be retained for 7 days.
           mode: motion

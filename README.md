@@ -65,6 +65,15 @@ ffmpeg -fflags nobuffer -flags low_delay -f h264 -r 30 -i - -c:v copy \
 - Now your RTSP stream is available at - `rtsp://<pi-tailscale-ip>:8554/cam`.
 - In your mothership config you have already added this camera. Everytime you add a new camera like this, just add a new camera config block over there and restart the server `docker compose down && docker compose up -d`.
 
+If you have multiple networks in your home, then I recommend you to setup RaspAP (also in general you can set this up) -
+
+- Follow this guide for easy setup - <https://docs.raspap.com/get-started/simple-setup/>
+- Change RaspAP's default username and password (defaults are - `admin` and `secret`).
+- Connect to all your home networks from the `Wifi Client` tab.
+- Configure the Hotspot from `Hotspot` tab.
+  - This will be useful when the PI is not connected to any network, then you can connect your system to that network and access the PI.
+  - Most of the default settings are good, just change the SSID and password. (This hotspot will only be visible when the PI is not connected to any of the networks).
+
 ## Battle-tested?
 
 Will be in few months! 😉

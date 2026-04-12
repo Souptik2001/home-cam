@@ -28,8 +28,16 @@ cameras:
     record:
       enabled: true
       continuous:
-        days: 7
+        days: 7 # Continuous recording will be retained for 7 days - turn it to 0, if you don't want continuous recording.
       motion:
-        days: 7
+        days: 7 # Any segment containing motion will be retained for 7 days.
+      alerts:
+        retain:
+          days: 7 # Any segment containing alerts - not any useful object in the shot will be retained for 7 days.
+          mode: motion
+      detections:
+        retain:
+          days: 7 # Any segment containing useful detection will be retained for 7 days.
+          mode: motion
 
 version: 0.17-0

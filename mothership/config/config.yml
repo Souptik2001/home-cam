@@ -1,0 +1,35 @@
+mqtt:
+  enabled: false
+
+go2rtc:
+  streams:
+    pi_cam:
+      - rtsp://<pi_cam_tailscale_ip>:8554/cam # PI cam tailscale IP
+  webrtc:
+    candidates:
+      - <frigate_server_tailscale_ip>:8555 # Frigate/this server tailscale IP
+      - stun:8555
+
+cameras:
+  pi_cam:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: rtsp://<pi_cam_tailscale_ip>:8554/cam # PI cam tailscale IP
+          roles:
+            - detect
+            - record
+    detect:
+      enabled: false
+      width: 1280
+      height: 720
+      fps: 5
+
+    record:
+      enabled: true
+      continuous:
+        days: 7
+      motion:
+        days: 7
+
+version: 0.17-0

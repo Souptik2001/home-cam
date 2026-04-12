@@ -65,6 +65,13 @@ ffmpeg -fflags nobuffer -flags low_delay -f h264 -r 30 -i - -c:v copy \
 - Now your RTSP stream is available at - `rtsp://<pi-tailscale-ip>:8554/cam`.
 - In your mothership config you have already added this camera. Everytime you add a new camera like this, just add a new camera config block over there and restart the server `docker compose down && docker compose up -d`.
 
+But if you see the two commands you have to run above (mediamtx and the ffmppeg) are manual. So, if your PI goes off and reboots you have to again run it, to make it automatic you have to register a systemctl service.
+
+- Create a file `/usr/local/bin/pi-camera-stream.sh` and add the content in `child/pi-camera-stream.sh`, in that file.
+- Make it executable - `sudo chmod +x /usr/local/bin/pi-camera-stream.sh`
+- Create a systemd service - `/etc/systemd/system/pi-camera-stream.service` and add the content of `child/pi-camera-stream.service` in that.
+- Run `sudo systemctl daemon-reload`, `sudo systemctl enable pi-camera-stream.service`, `sudo systemctl start pi-camera-stream.service`
+
 If you have multiple networks in your home, then I recommend you to setup RaspAP (also in general you can set this up) -
 
 - Follow this guide for easy setup - <https://docs.raspap.com/get-started/simple-setup/>

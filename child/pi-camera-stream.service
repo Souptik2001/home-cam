@@ -1,0 +1,19 @@
+[Unit]
+Description=Raspberry Pi Camera RTSP Stream
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/mediamtx
+ExecStart=/usr/local/bin/pi-camera-stream.sh
+Restart=always
+RestartSec=5
+
+# Helpful for ffmpeg / camera pipelines
+KillMode=control-group
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

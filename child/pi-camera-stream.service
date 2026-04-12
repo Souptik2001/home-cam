@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/mediamtx
+User=admin # Considering your username is admin and you have kept the mediamtx in /home/admin/mediamtx - same with the line below.
+WorkingDirectory=/home/admin/mediamtx
 ExecStart=/usr/local/bin/pi-camera-stream.sh
 Restart=always
 RestartSec=5

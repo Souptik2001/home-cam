@@ -56,9 +56,10 @@ Same steps for each of the child nodes -
 - Connect your Camera module 2 to the `CSI-2 camera connector` port of your PI.
 - Do all the same steps as you have done above for mothership till cloning this repository.
 - Get `mediamtx` - `wget https://github.com/bluenviron/mediamtx/releases/download/v1.17.1/mediamtx_v1.17.1_linux_armv7.tar.gz` (please replace the version with newest version URL)
-- Extract it - `tar -xvzf mediamtx_linux_armv7.tar.gz` (Again change the file name as required)
+- Extract it - `mkdir mediamtx && tar -xvzf mediamtx_linux_armv7.tar.gz -C ./mediamtx` (Again change the file name as required)
 - Replace the existing `mediamtx.yml` (inside the extracted directory) with the one I provided here, under the child directory.
 - Run the mediamtx binary - `./mediamtx`.
+- Install ffmpeg - `sudo apt install ffmpeg`.
 - Then run - `rpicam-vid -t 0 --inline --codec h264 --width 1280 --height 720 --framerate 30 -o - | \
 ffmpeg -fflags nobuffer -flags low_delay -f h264 -r 30 -i - -c:v copy \
 -f rtsp -rtsp_transport tcp rtsp://localhost:8554/cam`

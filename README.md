@@ -58,6 +58,7 @@ Same steps for each of the child nodes -
 - Get `mediamtx` - `wget https://github.com/bluenviron/mediamtx/releases/download/v1.17.1/mediamtx_v1.17.1_linux_armv7.tar.gz` (please replace the version with newest version URL)
 - Extract it - `mkdir mediamtx && tar -xvzf mediamtx_linux_armv7.tar.gz -C ./mediamtx` (Again change the file name as required)
 - Replace the existing `mediamtx.yml` (inside the extracted directory) with the one I provided here, under the child directory.
+- Important next thing is much easier to do through systemctl service which I have explained in next-to-next step.
 - I suggest doing the next steps in tmux, so here's a quick walkthrough for tmux -
   - Install tmux - `sudo apt install tmux`.
   - Open a new tmux session - `tmux new -s services`.
@@ -80,6 +81,7 @@ But if you see the two commands you have to run above (mediamtx and the ffmppeg)
 - Create a file `/usr/local/bin/pi-camera-stream.sh` and add the content in `child/pi-camera-stream.sh`, in that file.
 - Make it executable - `sudo chmod +x /usr/local/bin/pi-camera-stream.sh`
 - Create a systemd service - `/etc/systemd/system/pi-camera-stream.service` and add the content of `child/pi-camera-stream.service` in that.
+- Read and delete the comment on line number 8 on the service file.
 - Run `sudo systemctl daemon-reload`, `sudo systemctl enable pi-camera-stream.service`, `sudo systemctl start pi-camera-stream.service`
 
 If you have multiple networks in your home, then I recommend you to setup RaspAP (also in general you can set this up) -

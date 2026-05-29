@@ -58,11 +58,20 @@ Same steps for each of the child nodes -
 - Get `mediamtx` - `wget https://github.com/bluenviron/mediamtx/releases/download/v1.17.1/mediamtx_v1.17.1_linux_armv7.tar.gz` (please replace the version with newest version URL)
 - Extract it - `mkdir mediamtx && tar -xvzf mediamtx_linux_armv7.tar.gz -C ./mediamtx` (Again change the file name as required)
 - Replace the existing `mediamtx.yml` (inside the extracted directory) with the one I provided here, under the child directory.
-- Run the mediamtx binary - `./mediamtx`.
-- Install ffmpeg - `sudo apt install ffmpeg`.
-- Then run - `rpicam-vid -t 0 --inline --codec h264 --width 1280 --height 720 --framerate 30 -o - | \
+- I suggest doing the next steps in tmux, so here's a quick walkthrough for tmux -
+  - Install tmux - `sudo apt install tmux`.
+  - Open a new tmux session - `tmux new -s services`.
+  - Run the mediamtx binary - `./mediamtx`.
+  - Now open a new terminal using - "Ctrl+B" and then release both keys and press - "c".
+  - Now you are in a new terminal/window.
+  - Install ffmpeg - `sudo apt install ffmpeg`.
+  - Then run - `rpicam-vid -t 0 --inline --codec h264 --width 1280 --height 720 --framerate 30 -o - | \
 ffmpeg -fflags nobuffer -flags low_delay -f h264 -r 30 -i - -c:v copy \
 -f rtsp -rtsp_transport tcp rtsp://localhost:8554/cam`
+  - You can switch between windows using "ctrl+B" and then the window number you want to go to.
+  - You can detach from tmux using "ctrl+B" and then "d", your both commands are still running even if you now detach from SSH.
+  - `tmux ls` to check tmux sessions.
+  - `tmux a -t services` to go inside the services session in which our commands are running.
 - Now your RTSP stream is available at - `rtsp://<pi-tailscale-ip>:8554/cam`.
 - In your mothership config you have already added this camera. Everytime you add a new camera like this, just add a new camera config block over there and restart the server `docker compose down && docker compose up -d`.
 

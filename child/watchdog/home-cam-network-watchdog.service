@@ -1,0 +1,7 @@
+[Unit]
+Description=Home camera network watchdog check
+Documentation=file:/usr/local/bin/home-cam-network-watchdog.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/home-cam-network-watchdog.sh

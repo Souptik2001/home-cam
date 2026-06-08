@@ -84,14 +84,19 @@ But if you see the two commands you have to run above (mediamtx and the ffmppeg)
 - Read and delete the comment on line number 8 on the service file.
 - Run `sudo systemctl daemon-reload`, `sudo systemctl enable pi-camera-stream.service`, `sudo systemctl start pi-camera-stream.service`
 
-If you have multiple networks in your home, then I recommend you to setup RaspAP (also in general you can set this up) -
+If you have multiple networks in your home, then set all of them up through - `nmtui` - its a Terminal User Interface to manage networks.
 
-- Follow this guide for easy setup - <https://docs.raspap.com/get-started/simple-setup/>
-- Change RaspAP's default username and password (defaults are - `admin` and `secret`).
-- Connect to all your home networks from the `Wifi Client` tab.
-- Configure the Hotspot from `Hotspot` tab.
-  - This will be useful when the PI is not connected to any network, then you can connect your system to that network and access the PI.
-  - Most of the default settings are good, just change the SSID and password. (This hotspot will only be visible when the PI is not connected to any of the networks).
+If you have your frigate server within your home-network -
+
+- If your Frigate server is within your home-network, then you can use the PI's local IP instead of tailscale IP.
+- By default the local IP of the PI will change everytime you refresh the PI.
+- To fix that you can use something called reserved IPs in your router. In maximum of the routers you have a section to reserve a particular IP for a mac address. So, you can reserve a particular IP for your PI's mac address.
+
+Network watchdog -
+
+- One more problem you might have is, when your PI get's disconnected from the internet, it does not automatically reconnect.
+- Therefore there is a watchdog service, which runs on your PI every 2 minutes.
+- It checks if your connectivity to the Frigate server is up. If not, then it first reloads your network manager, and then if still not, then reboots the PI.
 
 ## Battle-tested?
 

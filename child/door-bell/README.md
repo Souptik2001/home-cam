@@ -1,7 +1,7 @@
 # Door Bell GPIO Listener
 
 This service watches GPIO 17 and sends an ntfy notification when the input
-changes from LOW to HIGH. It runs directly under systemd, so Docker is not
+changes from HIGH to LOW. It runs directly under systemd, so Docker is not
 required.
 
 The service uses the `pigpio` pin factory. The `pigpiod` daemon must be

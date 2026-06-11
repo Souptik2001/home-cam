@@ -40,13 +40,13 @@ def main():
     if not api_url or not api_token:
         raise SystemExit("NOTIFY_API_URL and NOTIFY_API_TOKEN must be configured.")
 
-    # Keep GPIO 17 LOW while idle and trigger when the input becomes HIGH.
-    button = Button(GPIO_PIN, pull_up=False, bounce_time=0.1)
+    # Keep GPIO 17 HIGH while idle and trigger when the input becomes LOW.
+    button = Button(GPIO_PIN, pull_up=True, bounce_time=0.1)
     button.when_pressed = lambda: action_on_door_bell_ring(
         api_url, api_token, camera_feed_url
     )
 
-    print(f"Listening for a HIGH signal on GPIO {GPIO_PIN}...", flush=True)
+    print(f"Listening for a LOW signal on GPIO {GPIO_PIN}...", flush=True)
     pause()
 
 

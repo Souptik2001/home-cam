@@ -4,8 +4,8 @@ This service watches GPIO 17 and sends a critical Home Assistant mobile
 notification when the input changes from HIGH to LOW. It runs directly under
 systemd, so Docker is not required.
 
-The service uses gpiozero's local `RPi.GPIO` pin factory, so it does not need a
-separate GPIO daemon.
+The service uses gpiozero's local `RPi.GPIO` pin factory backed by
+`rpi-lgpio`, so it does not need a separate GPIO daemon.
 
 The notification requests the strongest supported alert behavior:
 

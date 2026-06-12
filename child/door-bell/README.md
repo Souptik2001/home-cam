@@ -1,11 +1,105 @@
 # Door Bell GPIO Listener
 
-This service watches GPIO 17 and sends an ntfy notification when the input
-changes from HIGH to LOW. It runs directly under systemd, so Docker is not
-required.
+This service watches GPIO 17 and sends a critical Home Assistant mobile
+notification when the input changes from HIGH to LOW. It runs directly under
+systemd, so Docker is not required.
 
 The service uses the `pigpio` pin factory. The `pigpiod` daemon must be
 installed and running on the Raspberry Pi.
+
+The notification requests the strongest supported alert behavior:
+
+- Android: immediate high-priority delivery using the alarm audio stream.
+- iOS: a critical alert using the default sound at full volume.
+
+The phone and operating system must permit these behaviors. In particular,
+Android notification-channel settings control whether Do Not Disturb is
+overridden, and iOS must allow critical alerts for the Home Assistant app.
+
+## Home Assistant Setup
+
+1. Install and connect the Home Assistant Companion app on the target phone.
+2. In Home Assistant, open your profile and create a long-lived access token.
+3. Find the phone's notification action in **Developer Tools > Actions**. It
+   normally looks like `notify.mobile_app_your_phone`.
+4. Put the URL, token, and action name in
+   `/etc/home-cam-door-bell.env`. The `notify.` prefix is optional.
+
+The Raspberry Pi must be able to reach `HOME_ASSISTANT_URL`.
+
+## Test The Notification Manually
+
+Before installing the listener, test the Home Assistant credentials and
+notification group directly. Run the following on the Raspberry Pi, replacing
+the URL and service if needed:
+
+```bash
+export HOME_ASSISTANT_URL="https://home-assistant.example.com"
+export HOME_ASSISTANT_NOTIFY_SERVICE="notify.doorbell_devices"
+read -rsp "Home Assistant token: " HOME_ASSISTANT_TOKEN
+echo
+
+curl --fail-with-body \
+  -X POST \
+  -H "Authorization: Bearer ${HOME_ASSISTANT_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Door bell test",
+    "message": "The door bell notification is working.",
+    "data": {
+      "ttl": 0,
+      "priority": "high",
+      "channel": "alarm_stream",
+      "push": {
+        "sound": {
+          "name": "alarm.caf",
+          "critical": 1,
+          "volume": 1.0
+        }
+      }
+    }
+  }' \
+  "${HOME_ASSISTANT_URL%/}/api/services/notify/${HOME_ASSISTANT_NOTIFY_SERVICE#notify.}"
+
+unset HOME_ASSISTANT_TOKEN
+```
+
+A successful request returns a JSON response and sends the alert to every
+device in `notify.doorbell_devices`. An HTTP `401` response means the token is
+invalid, while an HTTP `404` response usually means the notification service
+name or Home Assistant URL is incorrect.
+
+### Test Using The Python Listener
+
+To test the actual Python notification function without registering the GPIO
+listener:
+
+1. Open `gpio-listener/door-bell-listener.py`.
+2. Uncomment the test block marked `From Souptik`, including its `return`.
+3. Export the configuration and run the script:
+
+```bash
+export HOME_ASSISTANT_URL="https://home-assistant.example.com"
+export HOME_ASSISTANT_NOTIFY_SERVICE="notify.doorbell_devices"
+export CAMERA_FEED_URL="https://camera.example.com"
+read -rsp "Home Assistant token: " HOME_ASSISTANT_TOKEN
+echo
+
+python3 gpio-listener/door-bell-listener.py
+
+unset HOME_ASSISTANT_TOKEN
+```
+
+The required Python packages must already be installed. If the service virtual
+environment has been created, run the installed copy instead:
+
+```bash
+/opt/home-cam-door-bell/.venv/bin/python \
+  /opt/home-cam-door-bell/door-bell-listener.py
+```
+
+After testing, comment the `From Souptik` block again so normal execution
+registers the GPIO listener.
 
 ## Install
 
@@ -31,6 +125,18 @@ sudo systemctl enable --now pigpiod.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now home-cam-door-bell.service
 ```
+
+Example configuration:
+
+```bash
+HOME_ASSISTANT_URL=http://homeassistant.local:8123
+HOME_ASSISTANT_TOKEN=replace-with-a-long-lived-access-token
+HOME_ASSISTANT_NOTIFY_SERVICE=notify.mobile_app_your_phone
+CAMERA_FEED_URL=https://camera.example.com
+```
+
+`CAMERA_FEED_URL` is optional. When provided, tapping the notification opens
+that URL.
 
 ## Check Status And Logs
 

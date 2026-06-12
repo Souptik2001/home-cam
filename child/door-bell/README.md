@@ -4,8 +4,8 @@ This service watches GPIO 17 and sends a critical Home Assistant mobile
 notification when the input changes from HIGH to LOW. It runs directly under
 systemd, so Docker is not required.
 
-The service uses the `pigpio` pin factory. The `pigpiod` daemon must be
-installed and running on the Raspberry Pi.
+The service uses gpiozero's local `RPi.GPIO` pin factory, so it does not need a
+separate GPIO daemon.
 
 The notification requests the strongest supported alert behavior:
 
@@ -91,12 +91,18 @@ unset HOME_ASSISTANT_TOKEN
 ```
 
 The required Python packages must already be installed. If the service virtual
-environment has been created, run the installed copy instead:
+environment and `/etc/home-cam-door-bell.env` have been created, load that
+root-only environment file and run the installed copy with:
 
 ```bash
-/opt/home-cam-door-bell/.venv/bin/python \
-  /opt/home-cam-door-bell/door-bell-listener.py
+sudo sh -c 'set -a
+. /etc/home-cam-door-bell.env
+set +a
+exec /opt/home-cam-door-bell/.venv/bin/python /opt/home-cam-door-bell/door-bell-listener.py'
 ```
+
+The `.` command is the portable equivalent of `source`; `source` is not
+available in every shell.
 
 After testing, comment the `From Souptik` block again so normal execution
 registers the GPIO listener.
@@ -118,10 +124,9 @@ sudo -u admin python3 -m venv /opt/home-cam-door-bell/.venv
 sudo -u admin /opt/home-cam-door-bell/.venv/bin/pip install -r /opt/home-cam-door-bell/requirements.txt
 
 sudo install -m 0600 home-cam-door-bell.env.example /etc/home-cam-door-bell.env
-sudoedit /etc/home-cam-door-bell.env
+sudo vim /etc/home-cam-door-bell.env
 
 sudo install -m 0644 home-cam-door-bell.service /etc/systemd/system/home-cam-door-bell.service
-sudo systemctl enable --now pigpiod.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now home-cam-door-bell.service
 ```

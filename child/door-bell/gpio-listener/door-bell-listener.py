@@ -78,12 +78,7 @@ def main():
 
     # From Souptik: uncomment this block to send one test notification and exit.
     # The return prevents the GPIO listener below from being registered.
-    # action_on_door_bell_ring(
-    #     home_assistant_url,
-    #     home_assistant_token,
-    #     notify_service,
-    #     camera_feed_url,
-    # )
+    # action_on_door_bell_ring(home_assistant_url, home_assistant_token, notify_service, camera_feed_url)
     # return
 
     # Keep GPIO 17 HIGH while idle and trigger when the input becomes LOW.

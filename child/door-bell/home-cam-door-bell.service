@@ -1,13 +1,13 @@
 [Unit]
 Description=Home camera door bell GPIO listener
-After=network-online.target pigpiod.service
-Wants=network-online.target pigpiod.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=admin
 WorkingDirectory=/opt/home-cam-door-bell
-Environment=GPIOZERO_PIN_FACTORY=pigpio
+Environment=GPIOZERO_PIN_FACTORY=rpigpio
 Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=/etc/home-cam-door-bell.env
 ExecStart=/opt/home-cam-door-bell/.venv/bin/python /opt/home-cam-door-bell/door-bell-listener.py

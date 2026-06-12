@@ -120,6 +120,9 @@ sudo install -d -o admin -g admin /opt/home-cam-door-bell
 sudo install -o admin -g admin -m 0644 gpio-listener/door-bell-listener.py /opt/home-cam-door-bell/door-bell-listener.py
 sudo install -o admin -g admin -m 0644 gpio-listener/requirements.txt /opt/home-cam-door-bell/requirements.txt
 
+sudo apt update
+sudo apt install swig python3-dev liblgpio-dev
+
 sudo -u admin python3 -m venv /opt/home-cam-door-bell/.venv
 sudo -u admin /opt/home-cam-door-bell/.venv/bin/pip install -r /opt/home-cam-door-bell/requirements.txt
 
@@ -130,6 +133,10 @@ sudo install -m 0644 home-cam-door-bell.service /etc/systemd/system/home-cam-doo
 sudo systemctl daemon-reload
 sudo systemctl enable --now home-cam-door-bell.service
 ```
+
+`swig`, the Python development headers, and the native `lgpio` development
+library are required when pip needs to build the `lgpio` Python package
+locally, which can happen on newer Python versions such as Python 3.13.
 
 Example configuration:
 

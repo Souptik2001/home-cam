@@ -16,7 +16,9 @@ cd "$MEDIA_MTX_DIR"
 sleep 2
 
 exec /bin/bash -lc '
-rpicam-vid -t 0 --inline --codec h264 --mode 2304:1296 --width 1280 --height 720 --framerate 30 --intra 30 -o - | \
+CAMERA_MODE="${CAMERA_MODE:-1640:1232}"
+
+rpicam-vid -t 0 --inline --codec h264 --mode "$CAMERA_MODE" --width 1280 --height 720 --framerate 30 --intra 30 -o - | \
 ffmpeg -use_wallclock_as_timestamps 1 -fflags +genpts -f h264 -r 30 -i - \
 -filter_complex "[0:v]scale=640:360[vlowout]" \
 -map 0:v:0 -c:v copy -f rtsp -rtsp_transport tcp rtsp://localhost:8554/high \

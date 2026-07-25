@@ -3,7 +3,7 @@
 ## Pre-requirements
 
 - A powerful Raspberry PI for your mothership - preferably Raspberry PI 4 or 5.
-- "n" number of [Raspberry PI Zero 2 W](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/) and [Raspberry PI camera module 2](https://www.raspberrypi.com/products/camera-module-v2/) - the number depends on how many child nodes you want.
+- "n" number of child nodes. A Raspberry Pi 3B+ or Raspberry Pi Zero 2 W is enough for the optimized child stream. For the camera, Raspberry Pi Camera Module 3 or a compatible IMX219 module such as Waveshare IMX219-120 works.
 
 ## Tailscale setup for both mothership and children
 
@@ -51,10 +51,17 @@ Your camera web UI is accessible on - `home.local:5000` (the hostname you have s
 
 ## Child nodes setup
 
-Same steps for each of the child nodes -
+Same steps for each of the child nodes (automatic steps below this section) -
 
-- Connect your Camera module 2 to the `CSI-2 camera connector` port of your PI.
+- Connect your camera module to the `CSI-2 camera connector` port of your PI. For Raspberry Pi 3B+, use a normal 15-pin CSI camera cable.
 - Do all the same steps as you have done above for mothership till cloning this repository.
+- Install the camera and streaming tools - `sudo apt update`, then `sudo apt install rpicam-apps ffmpeg`.
+- For third-party IMX219 modules like Waveshare IMX219-120, explicitly enable the sensor overlay:
+  - Edit `/boot/firmware/config.txt`.
+  - Under `[all]`, add `dtoverlay=imx219`.
+  - Reboot the Pi - `sudo reboot`.
+- Confirm that the camera is detected - `rpicam-vid --list-cameras`.
+  - For Waveshare IMX219-120, you should see `imx219` and modes such as `1640x1232`, `1920x1080`, and `3280x2464`.
 - Get `mediamtx` - `wget https://github.com/bluenviron/mediamtx/releases/download/v1.17.1/mediamtx_v1.17.1_linux_armv7.tar.gz` (please replace the version with newest version URL)
 - Extract it - `mkdir mediamtx && tar -xvzf mediamtx_linux_armv7.tar.gz -C ./mediamtx` (Again change the file name as required)
 - Replace the existing `mediamtx.yml` (inside the extracted directory) with the one I provided here, under the child directory.
@@ -65,24 +72,25 @@ Same steps for each of the child nodes -
   - Run the mediamtx binary - `./mediamtx`.
   - Now open a new terminal using - "Ctrl+B" and then release both keys and press - "c".
   - Now you are in a new terminal/window.
-  - Install ffmpeg - `sudo apt install ffmpeg`.
-  - Then run - `rpicam-vid -t 0 --inline --codec h264 --width 1280 --height 720 --framerate 30 -o - | \
-ffmpeg -fflags nobuffer -flags low_delay -f h264 -r 30 -i - -c:v copy \
--f rtsp -rtsp_transport tcp rtsp://localhost:8554/cam`
+  - Then run the command from `child/pi-camera-stream.sh` to publish `/high` and `/low`.
   - You can switch between windows using "ctrl+B" and then the window number you want to go to.
   - You can detach from tmux using "ctrl+B" and then "d", your both commands are still running even if you now detach from SSH.
   - `tmux ls` to check tmux sessions.
   - `tmux a -t services` to go inside the services session in which our commands are running.
-- Now your RTSP stream is available at - `rtsp://<pi-tailscale-ip>:8554/cam`.
+- Now your RTSP streams are available at:
+  - High/record stream - `rtsp://<pi-tailscale-ip>:8554/high`
+  - Low/detect stream - `rtsp://<pi-tailscale-ip>:8554/low`
 - In your mothership config you have already added this camera. Everytime you add a new camera like this, just add a new camera config block over there and restart the server `docker compose down && docker compose up -d`.
 
-But if you see the two commands you have to run above (mediamtx and the ffmppeg) are manual. So, if your PI goes off and reboots you have to again run it, to make it automatic you have to register a systemctl service.
+But if you see the two commands you have to run above (mediamtx and ffmpeg) are manual. So, if your PI goes off and reboots you have to again run it, to make it automatic you have to register a systemctl service.
 
-- Create a file `/usr/local/bin/pi-camera-stream.sh` and add the content in `child/pi-camera-stream.sh`, in that file.
-- Make it executable - `sudo chmod +x /usr/local/bin/pi-camera-stream.sh`
-- Create a systemd service - `/etc/systemd/system/pi-camera-stream.service` and add the content of `child/pi-camera-stream.service` in that.
-- Read and delete the comment on line number 8 on the service file.
-- Run `sudo systemctl daemon-reload`, `sudo systemctl enable pi-camera-stream.service`, `sudo systemctl start pi-camera-stream.service`
+- Install the stream script - `sudo install -m 0755 child/pi-camera-stream.sh /usr/local/bin/pi-camera-stream.sh`
+- Install the systemd service - `sudo install -m 0644 child/pi-camera-stream.service /etc/systemd/system/pi-camera-stream.service`
+- If your Raspberry Pi user is not `admin`, edit `/etc/systemd/system/pi-camera-stream.service` and update `User=` and `WorkingDirectory=`.
+- Run `sudo systemctl daemon-reload`, then `sudo systemctl enable --now pi-camera-stream.service`.
+- Check status - `systemctl status pi-camera-stream.service`.
+
+The stream script defaults to `CAMERA_MODE=1640:1232`, which matches the full-width IMX219 mode seen on Waveshare IMX219-120. For Camera Module 3 Wide, you can override this in the service with `Environment=CAMERA_MODE=2304:1296`.
 
 If you have multiple networks in your home, then set all of them up through - `nmtui` - its a Terminal User Interface to manage networks.
 

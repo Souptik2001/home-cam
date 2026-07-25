@@ -5,7 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=admin # Considering your username is admin and you have kept the mediamtx in /home/admin/mediamtx - same with the line below.
+# Change this if your Raspberry Pi user is not admin.
+User=admin
 WorkingDirectory=/home/admin/mediamtx
 ExecStart=/usr/local/bin/pi-camera-stream.sh
 Restart=always

@@ -62,9 +62,11 @@ Same steps for each of the child nodes (automatic steps below this section) -
   - Reboot the Pi - `sudo reboot`.
 - Confirm that the camera is detected - `rpicam-vid --list-cameras`.
   - For Waveshare IMX219-120, you should see `imx219` and modes such as `1640x1232`, `1920x1080`, and `3280x2464`.
-- Get `mediamtx` - `wget https://github.com/bluenviron/mediamtx/releases/download/v1.17.1/mediamtx_v1.17.1_linux_armv7.tar.gz` (please replace the version with newest version URL)
-- Extract it - `mkdir mediamtx && tar -xvzf mediamtx_linux_armv7.tar.gz -C ./mediamtx` (Again change the file name as required)
-- Replace the existing `mediamtx.yml` (inside the extracted directory) with the one I provided here, under the child directory.
+- Install the repository-pinned MediaMTX release. Do not substitute an untested "newest" version during provisioning. This setup is currently validated with `v1.18.2`.
+  - Choose the archive matching the Pi OS architecture (`linux_arm64` for 64-bit Raspberry Pi OS, `linux_armv7` for 32-bit).
+  - Download the archive and its published checksum from the [`v1.18.2` release](https://github.com/bluenviron/mediamtx/releases/tag/v1.18.2), then verify the archive before extraction.
+- Extract it into `/home/<user>/mediamtx` and install this repository's `child/mediamtx.yml` as `/home/<user>/mediamtx/mediamtx.yml`.
+- Record the selected architecture and verified archive hash in the node's provisioning log. Upgrades should be deliberate repository changes followed by stream regression tests, not an implicit latest-version download.
 - Important next thing is much easier to do through systemctl service which I have explained in next-to-next step.
 - I suggest doing the next steps in tmux, so here's a quick walkthrough for tmux -
   - Install tmux - `sudo apt install tmux`.
@@ -90,7 +92,24 @@ But if you see the two commands you have to run above (mediamtx and ffmpeg) are 
 - Run `sudo systemctl daemon-reload`, then `sudo systemctl enable --now pi-camera-stream.service`.
 - Check status - `systemctl status pi-camera-stream.service`.
 
-The stream script defaults to `CAMERA_MODE=1640:1232`, which matches the full-width IMX219 mode seen on Waveshare IMX219-120. For Camera Module 3 Wide, you can override this in the service with `Environment=CAMERA_MODE=2304:1296`.
+The stream script defaults to `CAMERA_MODE=1640:1232`, which matches the full-width IMX219 mode seen on Waveshare IMX219-120. For Camera Module 3 Wide, set `Environment=CAMERA_MODE=2304:1296` in the service. The service also pins the camera output to 30 FPS, a 30-frame keyframe interval, and a 4 Mbps high-stream bitrate. Keep these values explicit so every child produces the same Frigate-compatible stream.
+
+Do not generate timestamps from wall-clock arrival time for the raw H.264 pipe. The camera can deliver frames in small bursts, especially while under load; wall-clock timestamps then become duplicated or non-monotonic. `pi-camera-stream.sh` tells FFmpeg that the raw input is a deterministic 30 FPS stream instead.
+
+After installation, validate both streams before adding the child to Frigate:
+
+```bash
+ffprobe -v error -rtsp_transport tcp \
+  -show_entries stream=codec_name,width,height,r_frame_rate,avg_frame_rate \
+  -of default=noprint_wrappers=1 rtsp://127.0.0.1:8554/high
+
+timeout 35 ffmpeg -v error -xerror -rtsp_transport tcp \
+  -i rtsp://127.0.0.1:8554/high -t 30 -map 0:v:0 -f null -
+
+vcgencmd get_throttled
+```
+
+The decode command must exit successfully without corrupt-frame or timestamp errors. `vcgencmd get_throttled` should report `throttled=0x0`; undervoltage or throttling can corrupt/stall the camera pipeline and must be fixed at the PSU/cable rather than hidden in software.
 
 If you have multiple networks in your home, then set all of them up through - `nmtui` - its a Terminal User Interface to manage networks.
 

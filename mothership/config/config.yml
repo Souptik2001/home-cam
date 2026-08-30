@@ -1,55 +1,93 @@
 mqtt:
   enabled: false
 
+auth:
+  # LAN clients use Frigate's authenticated TLS endpoint on port 8971.
+  # Port 5000 is never published by Compose; the optional cloudflared sidecar
+  # may reach it only inside the Docker network after Cloudflare Access.
+  enabled: true
+
+database:
+  path: /config/frigate.db
+
 go2rtc:
   streams:
     pi_cam:
-      - rtsp://<pi_cam_tailscale_ip>:8554/high # PI cam tailscale IP
-  webrtc:
-    candidates:
-      - <frigate_server_tailscale_ip>:8555 # Frigate/this server tailscale IP
-      - stun:8555
+      - rtsp://{FRIGATE_CAM1_RTSP_HOST}:8554/high
+    pi_cam_2:
+      - rtsp://{FRIGATE_CAM2_RTSP_HOST}:8554/high
+
+# CPU decode is the portable default. Add a host-specific Compose override and
+# Frigate hardware preset only after validating it on the mothership GPU.
+ffmpeg:
+  hwaccel_args: []
+
+record:
+  enabled: true
+  continuous:
+    days: 0
+  motion:
+    days: 3
+
+snapshots:
+  enabled: false
+
+detect:
+  enabled: false
+  width: 640
+  height: 360
+  fps: 5
+
+birdseye:
+  enabled: false
+
+telemetry:
+  stats:
+    intel_gpu_stats: false
 
 cameras:
   pi_cam:
     enabled: true
     ffmpeg:
       inputs:
-        - path: rtsp://<pi_cam_tailscale_ip>:8554/low # PI cam tailscale IP
-          roles:
-            - detect
-        - path: rtsp://<pi_cam_tailscale_ip>:8554/high # PI cam tailscale IP
-          roles:
-            - record
+        - path: rtsp://{FRIGATE_CAM1_RTSP_HOST}:8554/low
+          input_args: preset-rtsp-generic
+          roles: [detect]
+        - path: rtsp://{FRIGATE_CAM1_RTSP_HOST}:8554/high
+          input_args: preset-rtsp-generic
+          roles: [record]
     detect:
       enabled: false
-      width: 1280
-      height: 720
+      width: 640
+      height: 360
       fps: 5
-
-    review:
-      alerts:
-        cutoff_time: 40
-      detections:
-        cutoff_time: 30
-
     record:
       enabled: true
       continuous:
-        days: 7 # Continuous recording will be retained for 7 days - turn it to 0, if you don't want continuous recording.
+        days: 0
       motion:
-        days: 7 # Any segment containing motion will be retained for 7 days.
-      alerts:
-        pre_capture: 5
-        post_capture: 5
-        retain:
-          days: 7 # Any segment containing alerts - not any useful object in the shot will be retained for 7 days.
-          mode: motion
-      detections:
-        pre_capture: 5
-        post_capture: 5
-        retain:
-          days: 7 # Any segment containing useful detection will be retained for 7 days.
-          mode: motion
+        days: 3
+
+  pi_cam_2:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: rtsp://{FRIGATE_CAM2_RTSP_HOST}:8554/low
+          input_args: preset-rtsp-generic
+          roles: [detect]
+        - path: rtsp://{FRIGATE_CAM2_RTSP_HOST}:8554/high
+          input_args: preset-rtsp-generic
+          roles: [record]
+    detect:
+      enabled: false
+      width: 640
+      height: 360
+      fps: 5
+    record:
+      enabled: true
+      continuous:
+        days: 0
+      motion:
+        days: 3
 
 version: 0.17-0

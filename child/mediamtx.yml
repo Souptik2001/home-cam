@@ -60,29 +60,33 @@ authMethod: internal
 # Internal authentication.
 # Enabled users.
 authInternalUsers:
-  # Default unprivileged user.
-  # Username. 'any' means any user, including anonymous ones.
+  # Only the on-node camera pipeline may publish or replace streams.
 - user: any
-  # Password. Not used in case of 'any' user.
   pass:
-  # IPs or networks allowed to use this user. An empty list means any IP.
-  ips: []
-  # Permissions.
+  ips: ['127.0.0.1', '::1']
   permissions:
-    # Available actions are: publish, read, playback, api, metrics, pprof.
   - action: publish
-    # Paths can be set to further restrict access to a specific path.
-    # An empty path means any path.
-    # Regular expressions can be used by using a tilde as prefix.
     path:
+
+  # Anonymous viewing is limited to loopback, RFC1918 LANs and Tailscale's
+  # CGNAT range. Restrict these ranges further with host firewall rules or
+  # Tailscale ACLs when the local network is not fully trusted.
+- user: any
+  pass:
+  ips:
+  - '127.0.0.1'
+  - '::1'
+  - '10.0.0.0/8'
+  - '172.16.0.0/12'
+  - '192.168.0.0/16'
+  - '100.64.0.0/10'
+  permissions:
   - action: read
     path:
   - action: playback
     path:
 
-  # Default administrator.
-  # This allows to use API, metrics and PPROF without authentication,
-  # if the IP is localhost.
+  # Local administration only.
 - user: any
   pass:
   ips: ['127.0.0.1', '::1']
@@ -301,7 +305,7 @@ rtspAuthMethods: [basic]
 # Global settings -> RTMP server
 
 # Allow clients to publish and read streams with the RTMP protocol.
-rtmp: true
+rtmp: false
 # Use the secure protocol variant (RTMPS).
 # Available values are "no", "strict", "optional".
 rtmpEncryption: "no"
@@ -321,7 +325,7 @@ rtmpServerCert: server.crt
 # Global settings -> HLS server
 
 # Allow clients to read streams with the HLS protocol.
-hls: true
+hls: false
 # Address of the HLS listener.
 hlsAddress: :8899
 # Enable HTTPS on the HLS server.
@@ -380,7 +384,7 @@ hlsMuxerCloseAfter: 60s
 # Global settings -> WebRTC server
 
 # Allow clients to publish and read streams with the WebRTC protocol.
-webrtc: true
+webrtc: false
 # Address of the WebRTC HTTP listener.
 webrtcAddress: :8889
 # Enable HTTPS on the WebRTC server.
@@ -437,7 +441,7 @@ webrtcTrackGatherTimeout: 2s
 # Global settings -> SRT server
 
 # Allow clients to publish and read streams with the SRT protocol.
-srt: true
+srt: false
 # Address of the SRT listener.
 srtAddress: :8890
 

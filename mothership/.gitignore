@@ -1,0 +1,4 @@
+secrets/cloudflared-token
+.env
+media/
+config/frigate.db*

@@ -1,22 +1,65 @@
+name: home-cam
+
 services:
   frigate:
     container_name: frigate
-    privileged: true
+    image: ${FRIGATE_IMAGE:-ghcr.io/blakeblackshear/frigate:0.17.1}
     restart: unless-stopped
-    image: ghcr.io/blakeblackshear/frigate:stable
-    shm_size: "256mb"
+    stop_grace_period: 30s
+    shm_size: "1gb"
     volumes:
-      - /etc/localtime:/etc/localtime:ro
       - ./config:/config
-      - ./storage:/media/frigate
-      - type: tmpfs
-        target: /tmp/cache
-        tmpfs:
-          size: 1000000000
+      - ./media:/media/frigate
+      - /etc/localtime:/etc/localtime:ro
+    tmpfs:
+      - /tmp/cache:size=1073741824,mode=1777
     ports:
-      - "5000:5000"
-      - "8554:8554"
-      - "8555:8555/tcp"
-      - "8555:8555/udp"
+      # Frigate's authenticated TLS endpoint. Port 5000 stays internal to the
+      # Compose network for health checks and the Access-protected tunnel.
+      - "${FRIGATE_BIND_IP:-127.0.0.1}:${FRIGATE_PORT:-8971}:8971"
     environment:
-      FRIGATE_RTSP_PASSWORD: password
+      TZ: ${TZ:-UTC}
+      FRIGATE_CAM1_RTSP_HOST: ${FRIGATE_CAM1_RTSP_HOST:?set FRIGATE_CAM1_RTSP_HOST in .env}
+      FRIGATE_CAM2_RTSP_HOST: ${FRIGATE_CAM2_RTSP_HOST:?set FRIGATE_CAM2_RTSP_HOST in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:5000/api/version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Optional public endpoint. It starts only when the cloudflare profile is
+  # selected, and the hostname must be protected by Cloudflare Access first.
+  cloudflared:
+    profiles: ["cloudflare"]
+    container_name: frigate-cloudflared
+    image: ${CLOUDFLARED_IMAGE:-cloudflare/cloudflared:2026.8.0}
+    user: "${UID:-1000}:${GID:-1000}"
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --loglevel
+      - info
+      - run
+      - --token-file
+      - /run/secrets/cloudflared_token
+    depends_on:
+      frigate:
+        condition: service_healthy
+    secrets:
+      - cloudflared_token
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+secrets:
+  cloudflared_token:
+    file: ./secrets/cloudflared-token

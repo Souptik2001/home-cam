@@ -5,13 +5,16 @@
 - A powerful Raspberry PI for your mothership - preferably Raspberry PI 4 or 5.
 - "n" number of child nodes. A Raspberry Pi 3B+ or Raspberry Pi Zero 2 W is enough for the optimized child stream. For the camera, Raspberry Pi Camera Module 3 or a compatible IMX219 module such as Waveshare IMX219-120 works.
 
-## Tailscale setup for both mothership and children
+## Optional Tailscale setup
 
-We need to setup tailscale in both mothership and the children, because they all will be communicating through tailnet.
+Tailscale is useful when the mothership and child nodes are on different networks. It is not required when all devices communicate directly over the same trusted LAN, which avoids sending continuous RTSP traffic through the tailnet.
 
-- Install tailscale - `curl -fsSL https://tailscale.com/install.sh | sh`
-- Generate a auth key from tailscale admin settings.
-- Done - `sudo tailscale up --authkey <YOUR_AUTH_KEY>`
+If you need it on the mothership and children:
+
+- Install Tailscale - `curl -fsSL https://tailscale.com/install.sh | sh`
+- Generate a short-lived or reusable auth key from the Tailscale admin settings as appropriate.
+- Join the node - `sudo tailscale up --authkey <YOUR_AUTH_KEY>`
+- Never commit the auth key.
 
 ## Mothership setup
 
@@ -39,15 +42,28 @@ Let's set it up as the mothership.
   - Run `sudo usermod -aG docker admin`, to add your user to the `docker` user group, so that you don't have to run the commands using `sudo` every time.
   - Reboot your PI - `sudo reboot`
 - Ok now you have Docker installed!
-- Now go ahead and clone this repository - `git clone https://github.com/Souptik2001/home-cam.git`.
-- Now go ahead and open `mothership/docker-compose.yml`, using any editor you want and make the following changes -
-  - Change the `password` of the Frigate service.
-- Now `cd` into the `mothership` folder, and just run the docker compose - `docker compose up -d`.
-- And volah! It's done! 🎉
+- Clone this repository - `git clone https://github.com/Souptik2001/home-cam.git`.
+- Enter the mothership directory and create the local environment file:
+  - `cd home-cam/mothership`
+  - `cp .env.example .env`
+- Set `FRIGATE_CAM1_RTSP_HOST` and `FRIGATE_CAM2_RTSP_HOST` to the cameras' LAN or Tailscale addresses. Set `FRIGATE_BIND_IP` to the mothership's reserved LAN address for LAN access, or keep `127.0.0.1` when only a local tunnel/reverse proxy should reach it. If binding to a LAN address, reserve that address in DHCP first; Docker cannot bind to an address the host no longer owns.
+- Validate and start it:
+  - `docker compose config --quiet`
+  - `docker compose up -d`
+  - `docker compose ps`
+- The pinned deployment uses Frigate `0.17.1`, low streams at 640×360 for processing, high streams for recording, object detection disabled, and three-day motion retention.
 
-Your camera web UI is accessible on - `home.local:5000` (the hostname you have set for your PI) - considering you are connected to the same internet your PI is connected to.
+Your authenticated camera UI is available at `https://<FRIGATE_BIND_IP>:<FRIGATE_PORT>` (port `8971` by default). Frigate uses a self-signed certificate unless you provide your own, so a browser warning is expected on a fresh LAN deployment. Complete Frigate's first-user setup before relying on LAN access. Port `5000` is intentionally not published to the host because it is Frigate's unauthenticated internal endpoint.
 
-🚨⚠️ Be sure to change the admin and user credentials for the motioneye service. Because its exposed to internet and without proper credentials anyone can.. literally spy on you! 🚨
+### Optional Cloudflare Access endpoint
+
+The Compose file includes a `cloudflared` profile, but it is deliberately off by default. First create a Cloudflare Access application and policy for the hostname; never publish an unauthenticated Frigate origin directly to the Internet. Then save the tunnel token at `mothership/secrets/cloudflared-token` with mode `0600` and run:
+
+```bash
+docker compose --profile cloudflare up -d
+```
+
+The token, `.env`, database, and recordings are ignored by Git and must never be committed.
 
 ## Child nodes setup
 
@@ -62,35 +78,44 @@ Same steps for each of the child nodes (automatic steps below this section) -
   - Reboot the Pi - `sudo reboot`.
 - Confirm that the camera is detected - `rpicam-vid --list-cameras`.
   - For Waveshare IMX219-120, you should see `imx219` and modes such as `1640x1232`, `1920x1080`, and `3280x2464`.
-- Get `mediamtx` - `wget https://github.com/bluenviron/mediamtx/releases/download/v1.17.1/mediamtx_v1.17.1_linux_armv7.tar.gz` (please replace the version with newest version URL)
-- Extract it - `mkdir mediamtx && tar -xvzf mediamtx_linux_armv7.tar.gz -C ./mediamtx` (Again change the file name as required)
-- Replace the existing `mediamtx.yml` (inside the extracted directory) with the one I provided here, under the child directory.
-- Important next thing is much easier to do through systemctl service which I have explained in next-to-next step.
-- I suggest doing the next steps in tmux, so here's a quick walkthrough for tmux -
-  - Install tmux - `sudo apt install tmux`.
-  - Open a new tmux session - `tmux new -s services`.
-  - Run the mediamtx binary - `./mediamtx`.
-  - Now open a new terminal using - "Ctrl+B" and then release both keys and press - "c".
-  - Now you are in a new terminal/window.
-  - Then run the command from `child/pi-camera-stream.sh` to publish `/high` and `/low`.
-  - You can switch between windows using "ctrl+B" and then the window number you want to go to.
-  - You can detach from tmux using "ctrl+B" and then "d", your both commands are still running even if you now detach from SSH.
-  - `tmux ls` to check tmux sessions.
-  - `tmux a -t services` to go inside the services session in which our commands are running.
-- Now your RTSP streams are available at:
-  - High/record stream - `rtsp://<pi-tailscale-ip>:8554/high`
-  - Low/detect stream - `rtsp://<pi-tailscale-ip>:8554/low`
-- In your mothership config you have already added this camera. Everytime you add a new camera like this, just add a new camera config block over there and restart the server `docker compose down && docker compose up -d`.
+- Install the child publisher using the pinned, checksum-verified installer:
+  - `cd home-cam`
+  - Waveshare/IMX219: `chmod +x child/install-child.sh && ./child/install-child.sh imx219`
+  - Camera Module 3/IMX708: `chmod +x child/install-child.sh && ./child/install-child.sh imx708`
+- The installer selects `arm64` or `armv7` from `uname -m`, installs MediaMTX `1.18.2`, verifies the release archive SHA-256, installs the shared script/service, and creates `/etc/default/pi-camera-stream` only when it does not already exist.
+- Do not substitute a floating “latest” MediaMTX download during provisioning. Upgrades should be deliberate repository changes followed by regression tests.
+- Streams are then available at:
+  - High/record stream - `rtsp://<pi-address>:8554/high`
+  - Low/detect stream - `rtsp://<pi-address>:8554/low`
+- Add the child's address to `mothership/.env`, then run `cd mothership && docker compose up -d`. A full `docker compose down` is unnecessary.
 
-But if you see the two commands you have to run above (mediamtx and ffmpeg) are manual. So, if your PI goes off and reboots you have to again run it, to make it automatic you have to register a systemctl service.
+MediaMTX permits publishing only from the child's loopback interface, so another LAN client cannot replace the camera stream. Anonymous reading is limited to loopback, RFC1918 private networks, and the Tailscale address range. RTSP must never be port-forwarded or exposed publicly. On an untrusted LAN, further restrict TCP port `8554` to the mothership with the Pi firewall, or enforce the equivalent Tailscale ACL.
 
-- Install the stream script - `sudo install -m 0755 child/pi-camera-stream.sh /usr/local/bin/pi-camera-stream.sh`
-- Install the systemd service - `sudo install -m 0644 child/pi-camera-stream.service /etc/systemd/system/pi-camera-stream.service`
-- If your Raspberry Pi user is not `admin`, edit `/etc/systemd/system/pi-camera-stream.service` and update `User=` and `WorkingDirectory=`.
-- Run `sudo systemctl daemon-reload`, then `sudo systemctl enable --now pi-camera-stream.service`.
-- Check status - `systemctl status pi-camera-stream.service`.
+The per-node environment defaults to the detected sensor mode, 30 FPS, a 30-frame keyframe interval, and a 4 Mbps high-stream bitrate. Sensor-specific values stay in `/etc/default/pi-camera-stream`; the shared service and stream script remain identical across nodes.
 
-The stream script defaults to `CAMERA_MODE=1640:1232`, which matches the full-width IMX219 mode seen on Waveshare IMX219-120. For Camera Module 3 Wide, you can override this in the service with `Environment=CAMERA_MODE=2304:1296`.
+Do not generate timestamps from wall-clock arrival time for the raw H.264 pipe. The camera can deliver frames in bursts; wall-clock arrival timestamps can therefore become duplicated or non-monotonic. `pi-camera-stream.sh` declares the raw input frame rate deterministically instead.
+
+After installation, validate both streams before adding the child to Frigate:
+
+```bash
+ffprobe -v error -rtsp_transport tcp \
+  -show_entries stream=codec_name,width,height,r_frame_rate,avg_frame_rate \
+  -of default=noprint_wrappers=1 rtsp://127.0.0.1:8554/high
+
+ffprobe -v error -rtsp_transport tcp \
+  -show_entries stream=codec_name,width,height,r_frame_rate,avg_frame_rate \
+  -of default=noprint_wrappers=1 rtsp://127.0.0.1:8554/low
+
+timeout 35 ffmpeg -v error -xerror -rtsp_transport tcp \
+  -i rtsp://127.0.0.1:8554/high -t 30 -map 0:v:0 -f null -
+
+timeout 35 ffmpeg -v error -xerror -rtsp_transport tcp \
+  -i rtsp://127.0.0.1:8554/low -t 30 -map 0:v:0 -f null -
+
+vcgencmd get_throttled
+```
+
+Both decode commands must exit successfully without corrupt-frame or timestamp errors. `vcgencmd get_throttled` should report `throttled=0x0`; undervoltage or throttling can corrupt/stall the camera pipeline and must be fixed at the PSU/cable rather than hidden in software.
 
 If you have multiple networks in your home, then set all of them up through - `nmtui` - its a Terminal User Interface to manage networks.
 

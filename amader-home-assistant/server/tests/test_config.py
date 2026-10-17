@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from amader_home_assistant.config import Settings
 
 
@@ -32,3 +35,28 @@ def test_structured_security_and_cors_settings_load_from_environment(
     }
     assert settings.pairing_code.get_secret_value() == "pair-code"
     assert settings.allowed_origins == ["https://app.example.test"]
+
+
+def test_web_push_vapid_public_key_accepts_url_safe_uncompressed_p256_key() -> None:
+    key = "B" + "a" * 86
+
+    assert (
+        Settings(
+            _env_file=None, web_push_vapid_public_key=key
+        ).web_push_vapid_public_key
+        == key
+    )
+
+
+def test_web_push_vapid_public_key_rejects_cli_labelled_output() -> None:
+    with pytest.raises(ValidationError, match="87-character URL-safe"):
+        Settings(
+            _env_file=None,
+            web_push_vapid_public_key="Application Server Key = B" + "a" * 86,
+        )
+
+
+def test_web_push_allowed_hosts_rejects_wildcards_and_ip_literals() -> None:
+    for host in ("*.push.example.com", "127.0.0.1", "[::1]"):
+        with pytest.raises(ValidationError, match="exact DNS hostnames"):
+            Settings(_env_file=None, web_push_allowed_hosts=[host])

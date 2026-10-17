@@ -45,6 +45,72 @@ def test_pairing_rejects_wrong_code(client: TestClient) -> None:
     )
 
 
+def test_pairing_is_rate_limited_by_client(settings) -> None:
+    from amader_home_assistant.main import create_app
+
+    limited = settings.model_copy(update={"pairing_attempts_per_minute": 2})
+    with TestClient(create_app(settings=limited)) as client:
+        first = client.post("/api/v1/pair", json={"code": "wrong-one", "name": "Phone"})
+        second = client.post(
+            "/api/v1/pair", json={"code": "wrong-two", "name": "Phone"}
+        )
+        blocked = client.post(
+            "/api/v1/pair", json={"code": "wrong-three", "name": "Phone"}
+        )
+
+    assert first.status_code == 401
+    assert second.status_code == 401
+    assert blocked.status_code == 429
+    assert blocked.headers["retry-after"] == "60"
+
+
+def test_pairing_uses_forwarded_client_only_from_trusted_proxy(settings) -> None:
+    from amader_home_assistant.main import create_app
+
+    limited = settings.model_copy(
+        update={
+            "pairing_attempts_per_minute": 1,
+            "pairing_rate_limit_max_clients": 2,
+            "trusted_proxy_networks": ["10.0.0.0/8"],
+        }
+    )
+    app = create_app(settings=limited)
+    with TestClient(app, client=("10.1.2.3", 50000)) as trusted:
+        first = trusted.post(
+            "/api/v1/pair",
+            headers={"CF-Connecting-IP": "203.0.113.10"},
+            json={"code": "wrong", "name": "Phone"},
+        )
+        second_client = trusted.post(
+            "/api/v1/pair",
+            headers={"CF-Connecting-IP": "203.0.113.11"},
+            json={"code": "wrong", "name": "Phone"},
+        )
+        trusted.post(
+            "/api/v1/pair",
+            headers={"CF-Connecting-IP": "203.0.113.12"},
+            json={"code": "wrong", "name": "Phone"},
+        )
+
+    with TestClient(app, client=("192.0.2.50", 50000)) as untrusted:
+        spoofed = untrusted.post(
+            "/api/v1/pair",
+            headers={"CF-Connecting-IP": "203.0.113.20"},
+            json={"code": "wrong", "name": "Phone"},
+        )
+        blocked = untrusted.post(
+            "/api/v1/pair",
+            headers={"CF-Connecting-IP": "203.0.113.21"},
+            json={"code": "wrong", "name": "Phone"},
+        )
+
+    assert first.status_code == 401
+    assert second_client.status_code == 401
+    assert len(app.state.pairing_attempts) <= 2
+    assert spoofed.status_code == 401
+    assert blocked.status_code == 429
+
+
 def test_protected_routes_require_a_valid_bearer_token(client: TestClient) -> None:
     assert client.get("/api/v1/events").status_code == 401
     assert client.post("/api/v1/devices", json={}).status_code == 401
@@ -259,7 +325,7 @@ def test_missing_firebase_credentials_uses_safe_disabled_mode(
         client.post(
             "/api/v1/devices",
             headers=auth_header(token),
-            json={"name": "Phone", "platform": "web", "push_token": "push-off"},
+            json={"name": "Phone", "platform": "android", "push_token": "push-off"},
         )
 
         ingested = signed_ingest(
@@ -273,7 +339,7 @@ def test_missing_firebase_credentials_uses_safe_disabled_mode(
         attempt = connection.execute(
             "SELECT status, error FROM notification_delivery_attempts"
         ).fetchone()
-    assert attempt == ("disabled", "push sender is not configured")
+    assert attempt == ("disabled", "android push sender is not configured")
 
 
 def test_cors_only_allows_configured_origin(client: TestClient) -> None:

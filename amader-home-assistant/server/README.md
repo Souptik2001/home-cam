@@ -66,8 +66,11 @@ Example event body:
 
 ## API
 
-Public machine endpoints:
+Public machine and frontend endpoints:
 
+- `GET /` (installable PWA)
+- `GET /manifest.webmanifest`
+- `GET /sw.js`
 - `GET /health/live`
 - `GET /health/ready`
 - `POST /api/v1/pair`
@@ -79,12 +82,31 @@ Bearer-protected household endpoints:
 - `POST /api/v1/devices`
 - `PUT /api/v1/devices/{device_id}`
 - `GET /api/v1/camera/config` (returns `https://camera.souptik.dev` by default)
+- `GET /api/v1/push/vapid-public-key`
+- `POST /api/v1/push/subscriptions`
+- `POST /api/v1/session/disconnect`
 
 ## Push notifications
 
-Set either `FIREBASE_CREDENTIALS_PATH` or `FIREBASE_CREDENTIALS_JSON` to enable
-Firebase Admin delivery. With neither configured, ingestion remains operational
-and each eligible delivery is recorded as `disabled`. Provider exceptions are
+The iPhone PWA uses standards-based Web Push. Configure these five values:
+
+- `WEB_PUSH_VAPID_PUBLIC_KEY`
+- `WEB_PUSH_VAPID_PRIVATE_KEY_PATH`
+- `WEB_PUSH_VAPID_SUBJECT` (a `mailto:` or HTTPS operator contact)
+- `WEB_PUSH_ALLOWED_HOSTS` (exact browser push-service host allow-list)
+- `WEB_PUSH_TIMEOUT_SECONDS` (short finite provider timeout)
+
+Generate the private identity once, store it outside Git with mode `0600`, and keep
+it stable. Replacing the VAPID key requires browsers to subscribe again. Web Push
+payloads are encrypted for each browser subscription; endpoints are accepted only
+from the explicit allow-list, redirects are disabled, and provider I/O runs outside
+the request event loop. The server records each attempt separately from the durable
+doorbell event.
+
+The native Android app can additionally use Firebase. Set either
+`FIREBASE_CREDENTIALS_PATH` or `FIREBASE_CREDENTIALS_JSON` to enable Firebase
+Admin delivery. When a platform sender is absent, ingestion remains operational
+and its delivery attempt is recorded as `disabled`. Provider exceptions are
 recorded as failed attempts and never roll back or delete the doorbell event.
 
 ## Docker
@@ -95,6 +117,8 @@ Build from this directory:
 docker build -t amader-home-assistant-server .
 docker run --rm -p 8000:8000 \
   --env-file .env \
+  -e WEB_PUSH_VAPID_PRIVATE_KEY_PATH=/run/secrets/web-push-vapid-private.pem \
+  -v /home/bob-home/.config/amader-home-assistant/vapid/private_key.pem:/run/secrets/web-push-vapid-private.pem:ro \
   -v amader-home-data:/app/data \
   amader-home-assistant-server
 ```

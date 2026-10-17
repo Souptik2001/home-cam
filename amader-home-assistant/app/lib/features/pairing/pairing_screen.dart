@@ -17,7 +17,9 @@ class PairingScreen extends StatefulWidget {
 
 class _PairingScreenState extends State<PairingScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _baseUrlController = TextEditingController();
+  final _baseUrlController = TextEditingController(
+    text: 'https://amader-home-assistant.souptik.dev',
+  );
   final _codeController = TextEditingController();
   bool _submitting = false;
   String? _error;
@@ -32,11 +34,7 @@ class _PairingScreenState extends State<PairingScreen> {
   Uri? _normalizedUri(String value) {
     final trimmed = value.trim();
     final parsed = Uri.tryParse(trimmed);
-    final allowedScheme =
-        parsed?.scheme == 'https' ||
-        (parsed?.scheme == 'http' &&
-            parsed?.host == 'bob-home.taildba06.ts.net');
-    if (parsed == null || !allowedScheme || parsed.host.isEmpty) {
+    if (parsed == null || parsed.scheme != 'https' || parsed.host.isEmpty) {
       return null;
     }
     final path = parsed.path == '/'
@@ -105,7 +103,7 @@ class _PairingScreenState extends State<PairingScreen> {
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) => _normalizedUri(value ?? '') == null
-                          ? 'Use HTTPS, or Bob’s private Tailscale server URL.'
+                          ? 'Use a valid HTTPS server URL.'
                           : null,
                     ),
                     const SizedBox(height: 16),

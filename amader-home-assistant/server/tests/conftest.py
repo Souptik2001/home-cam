@@ -19,15 +19,18 @@ from amader_home_assistant.push import PushMessage, PushResult
 class RecordingPushSender:
     enabled = True
 
-    def __init__(self, *, fail: bool = False) -> None:
+    def __init__(
+        self, *, fail: bool = False, provider_message_id: str = "provider-message-1"
+    ) -> None:
         self.fail = fail
+        self.provider_message_id = provider_message_id
         self.calls: list[tuple[str, PushMessage]] = []
 
     def send(self, token: str, message: PushMessage) -> PushResult:
         self.calls.append((token, message))
         if self.fail:
             raise RuntimeError("provider unavailable")
-        return PushResult(provider_message_id="provider-message-1")
+        return PushResult(provider_message_id=self.provider_message_id)
 
 
 @pytest.fixture

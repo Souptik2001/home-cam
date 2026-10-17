@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
 class PairRequest(BaseModel):
@@ -18,7 +18,7 @@ class PairResponse(BaseModel):
 
 class DeviceWrite(BaseModel):
     name: str = Field(min_length=1, max_length=128)
-    platform: Literal["android", "ios", "web"]
+    platform: Literal["android", "ios"]
     push_token: str = Field(min_length=1, max_length=4096)
     enabled: bool = True
 
@@ -30,6 +30,29 @@ class DeviceResponse(BaseModel):
     name: str
     platform: str
     enabled: bool
+
+
+class WebPushKeys(BaseModel):
+    p256dh: str = Field(min_length=16, max_length=4096)
+    auth: str = Field(min_length=8, max_length=1024)
+
+
+class WebPushSubscriptionWrite(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    endpoint: HttpUrl
+    expiration_time: int | None = None
+    keys: WebPushKeys
+
+    @field_validator("endpoint")
+    @classmethod
+    def require_https_endpoint(cls, value: HttpUrl) -> HttpUrl:
+        if value.scheme != "https":
+            raise ValueError("web push endpoint must use HTTPS")
+        return value
+
+
+class VapidPublicKeyResponse(BaseModel):
+    public_key: str
 
 
 class DoorbellIngest(BaseModel):

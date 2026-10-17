@@ -3,6 +3,15 @@
 *.log
 .DS_Store
 
+# Private signing and provider credentials
+amader-home-assistant/secrets/
+*.pem
+*.key
+*.p12
+*.jks
+key.properties
+google-services.json
+
 # Python
 **/.venv/
 **/__pycache__/

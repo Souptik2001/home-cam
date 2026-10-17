@@ -28,9 +28,12 @@ void main() {
       ),
     );
 
-    await tester.enterText(
-      find.byKey(const Key('serverUrlField')),
-      'https://home.example.test/',
+    expect(
+      tester
+          .widget<TextFormField>(find.byKey(const Key('serverUrlField')))
+          .controller
+          ?.text,
+      'https://amader-home-assistant.souptik.dev',
     );
     await tester.enterText(
       find.byKey(const Key('pairingCodeField')),
@@ -39,7 +42,10 @@ void main() {
     await tester.tap(find.text('Pair device'));
     await tester.pumpAndSettle();
 
-    expect(service.received?.baseUrl.toString(), 'https://home.example.test');
+    expect(
+      service.received?.baseUrl.toString(),
+      'https://amader-home-assistant.souptik.dev',
+    );
     expect(service.received?.pairingCode, '123456');
     expect(paired, isTrue);
   });
@@ -61,35 +67,7 @@ void main() {
     await tester.tap(find.text('Pair device'));
     await tester.pump();
 
-    expect(
-      find.text('Use HTTPS, or Bob’s private Tailscale server URL.'),
-      findsOneWidget,
-    );
+    expect(find.text('Use a valid HTTPS server URL.'), findsOneWidget);
     expect(service.received, isNull);
-  });
-
-  testWidgets('pairing allows the private HTTP Tailscale server', (
-    tester,
-  ) async {
-    final service = FakePairingService();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: PairingScreen(pairingService: service, onPaired: () {}),
-      ),
-    );
-
-    await tester.enterText(
-      find.byKey(const Key('serverUrlField')),
-      'http://bob-home.taildba06.ts.net:8787',
-    );
-    await tester.enterText(find.byKey(const Key('pairingCodeField')), '123456');
-    await tester.tap(find.text('Pair device'));
-    await tester.pumpAndSettle();
-
-    expect(
-      service.received?.baseUrl.toString(),
-      'http://bob-home.taildba06.ts.net:8787',
-    );
   });
 }

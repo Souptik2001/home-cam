@@ -1,28 +1,104 @@
 # Amader Home Assistant Server
 
-FastAPI backend for the custom doorbell platform.
+FastAPI v1 backend for a single-household doorbell. It stores events before
+attempting notifications, uses SQLite by default, and can use any SQLAlchemy URL
+supported by the installed driver (PostgreSQL via `psycopg` is included).
 
-## Local Python development
-
-```sh
-uv sync
-uv run pytest
-DATABASE_URL=postgresql://user:password@localhost/database uv run uvicorn amader_home_assistant.main:app --reload
-```
-
-## Docker deployment
-
-Run from `amader-home-assistant/`:
+## Local development
 
 ```sh
 cp .env.example .env
-# Replace POSTGRES_PASSWORD before starting.
-docker compose up --build -d
+# Replace every placeholder secret in .env.
+uv sync
+uv run pytest
+uv run uvicorn amader_home_assistant.main:app --reload
 ```
 
-Endpoints currently available:
+The default database is `./data/amader-home-assistant.db`. Tables and indexes are
+created deterministically at application startup. For a service deployment, keep
+the database on persistent storage, for example:
 
-- `GET /health/live` — confirms the API process is running.
-- `GET /health/ready` — confirms the configured PostgreSQL database is reachable.
+```sh
+DATABASE_URL=sqlite:////var/lib/amader-home-assistant/app.db
+```
 
-The API intentionally binds to `127.0.0.1:8787` by default. Publish it through the server's HTTPS reverse proxy rather than exposing the container directly.
+## Required security configuration
+
+- `PAIRING_CODE`: a one-time code. A successful pairing stores only its SHA-256
+  hash. Rotate this environment value to allow another pairing.
+- `DOORBELL_HMAC_SECRETS`: JSON mapping source IDs to shared secrets, for example
+  `{"front-door":"a-long-random-secret"}`.
+- `ALLOWED_ORIGINS`: JSON list of exact browser origins. An empty list enables no
+  CORS origins; wildcard CORS is never configured.
+
+Bearer session tokens are returned only once by `POST /api/v1/pair` and stored
+only as hashes. Run the API behind HTTPS; pairing codes, bearer tokens, push
+tokens, and HMAC secrets must not be logged.
+
+## Doorbell ingestion signature
+
+`POST /api/v1/ingest/doorbell` requires these headers:
+
+- `X-Doorbell-Source`
+- `X-Doorbell-Timestamp` (Unix seconds)
+- `X-Doorbell-Nonce` (unique per source)
+- `X-Doorbell-Signature`
+
+Calculate the lowercase SHA-256 HMAC hex digest over the exact request bytes:
+
+```text
+source_id + "." + timestamp + "." + nonce + "." + raw_json_body
+```
+
+The timestamp must be within `HMAC_MAX_AGE_SECONDS` (300 by default). The unique
+source/nonce pair makes retries idempotent: the first request returns `201`, and
+a valid retry returns the existing event with `200` and `duplicate: true`.
+
+Example event body:
+
+```json
+{
+  "occurred_at": "2026-10-17T10:00:00Z",
+  "event_type": "doorbell",
+  "metadata": {"motion": true}
+}
+```
+
+## API
+
+Public machine endpoints:
+
+- `GET /health/live`
+- `GET /health/ready`
+- `POST /api/v1/pair`
+- `POST /api/v1/ingest/doorbell` (HMAC authenticated)
+
+Bearer-protected household endpoints:
+
+- `GET /api/v1/events?limit=50` (newest first; maximum 200)
+- `POST /api/v1/devices`
+- `PUT /api/v1/devices/{device_id}`
+- `GET /api/v1/camera/config` (returns `https://camera.souptik.dev` by default)
+
+## Push notifications
+
+Set either `FIREBASE_CREDENTIALS_PATH` or `FIREBASE_CREDENTIALS_JSON` to enable
+Firebase Admin delivery. With neither configured, ingestion remains operational
+and each eligible delivery is recorded as `disabled`. Provider exceptions are
+recorded as failed attempts and never roll back or delete the doorbell event.
+
+## Docker
+
+Build from this directory:
+
+```sh
+docker build -t amader-home-assistant-server .
+docker run --rm -p 8000:8000 \
+  --env-file .env \
+  -v amader-home-data:/app/data \
+  amader-home-assistant-server
+```
+
+The image runs as a non-root user and declares `/app/data` as its persistent
+volume. Publish the service through an HTTPS reverse proxy rather than exposing
+it directly to the internet.

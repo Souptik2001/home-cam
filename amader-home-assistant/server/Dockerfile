@@ -16,11 +16,13 @@ COPY src ./src
 RUN uv sync --frozen --no-dev
 
 RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p /app/data \
     && chown -R appuser:appuser /app
 USER appuser
 
 ENV PATH="/app/.venv/bin:$PATH"
 
+VOLUME ["/app/data"]
 EXPOSE 8000
 
 CMD ["uvicorn", "amader_home_assistant.main:app", "--host", "0.0.0.0", "--port", "8000"]

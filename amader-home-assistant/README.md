@@ -1,37 +1,60 @@
 # Amader Home Assistant
 
-Custom doorbell notification platform contained in the existing `home-cam` repository.
+A self-hosted doorbell event and notification platform inside the existing `home-cam` repository.
 
 ```text
 amader-home-assistant/
-├── server/  # FastAPI backend and PostgreSQL integration
-└── app/     # One Flutter codebase for Android and iOS
+├── server/  # FastAPI API, SQLite/PostgreSQL persistence, pairing and FCM
+├── app/     # One Flutter codebase for Android and iOS
+├── deploy/  # Bob server systemd deployment and operations
+├── docs/    # Platform build instructions
+└── compose.yaml
 ```
 
 The live camera destination is `https://camera.souptik.dev`.
 
-## Why Docker for the server
+## Current deployment
 
-The server is deployed with Docker Compose because it gives us a reproducible API/database environment, isolated dependencies, simple upgrades, health checks, and straightforward backup/rollback. The API binds to localhost by default; the existing HTTPS reverse proxy should publish it when a production hostname is selected.
+The backend runs as `amader-home-assistant.service` on Bob's server and listens only on its Tailscale address:
 
-## Start the server locally
-
-```sh
-cd amader-home-assistant
-cp .env.example .env
-docker compose up --build -d
-docker compose ps
-curl http://127.0.0.1:8787/health/live
-curl http://127.0.0.1:8787/health/ready
+```text
+http://bob-home.taildba06.ts.net:8787
 ```
 
-Do not commit `.env` or any Firebase, APNs, camera, database, or signing credentials.
+Tailscale encrypts this private transport. The API also requires a one-time pairing code for phones and an HMAC signature for doorbell sources. See `deploy/README.md`.
 
-## Mobile builds
+Docker Compose remains available for a future privileged/container deployment. The current account cannot access the host Docker daemon, so the verified live deployment uses a hardened user-level systemd service and SQLite WAL mode.
 
-Both mobile platforms use the single Flutter project in `app/`.
+## Capabilities
 
-- Android APKs can be built on this Linux host after the Android SDK is installed and configured.
-- A signed iOS IPA requires macOS/Xcode plus Apple Developer signing and provisioning. The source can be prepared here, but signing must run on a configured Mac or macOS CI runner.
+- Signed and replay-resistant doorbell event ingestion
+- Durable event history
+- One-time device pairing and protected API sessions
+- Android/iOS device registration
+- Optional Firebase Cloud Messaging delivery
+- Android high-importance doorbell channel
+- iOS Time Sensitive notifications, with Critical Alerts configurable after Apple approval
+- Notification routing directly to the camera screen
+- In-app camera view with browser fallback
 
-See `app/README.md` and `server/README.md` for component commands.
+Push delivery remains disabled until Firebase Android/iOS app files and a backend Firebase service-account credential are installed. No Firebase or Apple secret belongs in Git.
+
+## Development verification
+
+```sh
+cd server
+uv sync
+uv run pytest -q
+uv run ruff check .
+uv run ruff format --check .
+
+cd ../app
+flutter pub get
+flutter analyze
+flutter test
+```
+
+## Builds
+
+- Android release APKs are built on Bob's Linux server using the private release keystore stored outside Git.
+- Signed iOS IPAs require macOS, Xcode and an Apple Developer signing identity. Follow `docs/ios-build.md` exactly.

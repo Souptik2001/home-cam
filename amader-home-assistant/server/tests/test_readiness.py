@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from types import TracebackType
 from typing import Self

@@ -1,37 +1,33 @@
-import 'package:amader_home_assistant/main.dart';
-import 'package:flutter/material.dart';
+import 'package:amader_home_assistant/app.dart';
+import 'package:amader_home_assistant/core/auth/session_store.dart';
+import 'package:amader_home_assistant/core/network/api_client.dart';
+import 'package:amader_home_assistant/core/notifications/notification_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+class EmptySessionStore implements SessionStore {
+  @override
+  Future<void> clear() async {}
+
+  @override
+  Future<Session?> read() async => null;
+
+  @override
+  Future<void> write(Session session) async {}
+}
+
 void main() {
-  testWidgets('shows the Events screen with a meaningful empty state', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const AmaderHomeAssistantApp());
-
-    expect(find.text('Amader Home Assistant'), findsOneWidget);
-    expect(find.text('Events'), findsOneWidget);
-    expect(find.byIcon(Icons.event_note_outlined), findsOneWidget);
-    expect(find.text('No events yet'), findsOneWidget);
-    expect(
-      find.text('Camera events will appear here when they are available.'),
-      findsOneWidget,
+  testWidgets('first run opens the pairing screen', (tester) async {
+    await tester.pumpWidget(
+      AmaderHomeAssistantApp(
+        sessionStore: EmptySessionStore(),
+        notificationServiceFactory: (ApiClient _) =>
+            const NoopNotificationService(),
+      ),
     );
-  });
-
-  testWidgets('opens the Camera screen and identifies the camera URL', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const AmaderHomeAssistantApp());
-
-    await tester.tap(find.byTooltip('Camera'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Camera'), findsOneWidget);
-    expect(find.byIcon(Icons.videocam_outlined), findsOneWidget);
-    expect(find.text('https://camera.souptik.dev'), findsOneWidget);
-    expect(
-      find.text('Live camera viewing will be added in a future update.'),
-      findsOneWidget,
-    );
+    expect(find.text('Pair your doorbell'), findsOneWidget);
+    expect(find.text('Server URL'), findsOneWidget);
+    expect(find.text('Pairing code'), findsOneWidget);
   });
 }

@@ -22,6 +22,13 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-amader_home_assistant}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-amader_home_assistant}
+      PAIRING_CODE: ${PAIRING_CODE:?set PAIRING_CODE in .env}
+      DOORBELL_HMAC_SECRETS: ${DOORBELL_HMAC_SECRETS:?set DOORBELL_HMAC_SECRETS in .env}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-[]}
+      HMAC_MAX_AGE_SECONDS: ${HMAC_MAX_AGE_SECONDS:-300}
+      MAX_INGEST_BODY_BYTES: ${MAX_INGEST_BODY_BYTES:-16384}
+      CAMERA_BASE_URL: ${CAMERA_BASE_URL:-https://camera.souptik.dev}
+      IOS_CRITICAL_ALERTS_ENABLED: ${IOS_CRITICAL_ALERTS_ENABLED:-false}
     depends_on:
       db:
         condition: service_healthy

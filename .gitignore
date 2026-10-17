@@ -1,0 +1,21 @@
+# Local and generated files
+.env
+*.log
+.DS_Store
+
+# Python
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/dist/
+
+# Flutter / Dart
+amader-home-assistant/app/.dart_tool/
+amader-home-assistant/app/build/
+amader-home-assistant/app/.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/

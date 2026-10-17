@@ -1,66 +1,71 @@
-services:
-  db:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-amader_home_assistant}
-      POSTGRES_USER: ${POSTGRES_USER:-amader_home_assistant}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-    volumes:
-      - amader-home-assistant-db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - backend
+name: amader-home-assistant
 
+services:
   api:
+    container_name: amader-home-assistant
     build:
       context: ./server
+    image: amader-home-assistant-api:0.2.0
+    user: "1000:1000"
+    init: true
     restart: unless-stopped
+    stop_grace_period: 20s
+    env_file:
+      - ${SERVER_ENV_FILE:-/home/bob-home/.config/amader-home-assistant/server.env}
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-amader_home_assistant}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-amader_home_assistant}
-      PAIRING_CODE: ${PAIRING_CODE:?set PAIRING_CODE in .env}
-      DOORBELL_HMAC_SECRETS: ${DOORBELL_HMAC_SECRETS:?set DOORBELL_HMAC_SECRETS in .env}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-[]}
-      HMAC_MAX_AGE_SECONDS: ${HMAC_MAX_AGE_SECONDS:-300}
-      MAX_INGEST_BODY_BYTES: ${MAX_INGEST_BODY_BYTES:-16384}
-      PAIRING_ATTEMPTS_PER_MINUTE: ${PAIRING_ATTEMPTS_PER_MINUTE:-5}
-      PAIRING_RATE_LIMIT_MAX_CLIENTS: ${PAIRING_RATE_LIMIT_MAX_CLIENTS:-2048}
-      TRUSTED_PROXY_NETWORKS: ${TRUSTED_PROXY_NETWORKS:-[]}
-      CAMERA_BASE_URL: ${CAMERA_BASE_URL:-https://camera.souptik.dev}
-      WEB_PUSH_VAPID_PUBLIC_KEY: ${WEB_PUSH_VAPID_PUBLIC_KEY:?set WEB_PUSH_VAPID_PUBLIC_KEY in .env}
+      DATABASE_URL: sqlite:////app/data/amader-home-assistant.db
+      TRUSTED_PROXY_NETWORKS: '["172.30.250.2/32"]'
       WEB_PUSH_VAPID_PRIVATE_KEY_PATH: /run/secrets/web-push-vapid-private.pem
-      WEB_PUSH_VAPID_SUBJECT: ${WEB_PUSH_VAPID_SUBJECT:?set WEB_PUSH_VAPID_SUBJECT in .env}
-      WEB_PUSH_ALLOWED_HOSTS: ${WEB_PUSH_ALLOWED_HOSTS:-["web.push.apple.com","fcm.googleapis.com"]}
-      WEB_PUSH_TIMEOUT_SECONDS: ${WEB_PUSH_TIMEOUT_SECONDS:-5}
-      IOS_CRITICAL_ALERTS_ENABLED: ${IOS_CRITICAL_ALERTS_ENABLED:-false}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        test -f /app/data/amader-home-assistant.db
+        exec uvicorn amader_home_assistant.main:app \
+          --host 0.0.0.0 --port 8787 --workers 1
     volumes:
-      - ${WEB_PUSH_VAPID_PRIVATE_KEY_FILE:?set WEB_PUSH_VAPID_PRIVATE_KEY_FILE in .env}:/run/secrets/web-push-vapid-private.pem:ro
-    depends_on:
-      db:
-        condition: service_healthy
+      - type: bind
+        source: ${DATA_DIR:-/home/bob-home/.local/share/amader-home-assistant/data}
+        target: /app/data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${WEB_PUSH_VAPID_PRIVATE_KEY_FILE:-/home/bob-home/.config/amader-home-assistant/vapid/private_key.pem}
+        target: /run/secrets/web-push-vapid-private.pem
+        read_only: true
+        bind:
+          create_host_path: false
     ports:
-      - "${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-8787}:8000"
+      - "${API_BIND_ADDRESS:-100.94.160.64}:${API_PORT:-8787}:8787"
     healthcheck:
       test:
         [
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/health/ready', timeout=2)",
         ]
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - backend
+      tunnel:
+        ipv4_address: 172.30.250.3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
-  backend:
-    internal: true
-
-volumes:
-  amader-home-assistant-db:
+  tunnel:
+    external: true
+    name: amader-home-tunnel

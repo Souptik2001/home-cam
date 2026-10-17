@@ -1,5 +1,12 @@
-const CACHE = "amader-home-v1";
-const SHELL = ["/", "/styles.css", "/app.js", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+const CACHE = "amader-home-v2";
+const SHELL = [
+  "/",
+  "/styles.css?v=2",
+  "/app.js?v=2",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+];
 const CAMERA_ORIGIN = "https://camera.souptik.dev";
 
 self.addEventListener("install", (event) => {

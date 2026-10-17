@@ -6,12 +6,12 @@ A self-hosted doorbell event and notification platform inside the existing `home
 amader-home-assistant/
 ├── server/  # FastAPI API, persistence, PWA frontend, Web Push and FCM
 ├── app/     # Native Flutter Android app (iOS source retained, PWA is the free iPhone path)
-├── deploy/  # Bob server systemd deployment and operations
+├── deploy/  # Docker, Cloudflare Tunnel, backup, and rollback operations
 ├── docs/    # Installation and platform instructions
 └── compose.yaml
 ```
 
-The live camera destination is `https://camera.souptik.dev`. The planned public application origin is `https://amader-home-assistant.souptik.dev`.
+The live camera destination is `https://camera.souptik.dev`. The public application origin is `https://amader-home-assistant.souptik.dev`.
 
 ## Client architecture
 
@@ -23,21 +23,21 @@ For iPhone push, Safari creates a browser subscription backed by Apple's push se
 
 ## Current deployment
 
-The backend runs as `amader-home-assistant.service` on Bob's server. Until the Cloudflare hostname is configured, its verified private endpoint is:
+The backend runs as the hardened Docker container `amader-home-assistant`. The existing `frigate-cloudflared` connector reaches it over the dedicated `amader-home-tunnel` bridge at:
 
 ```text
-http://bob-home.taildba06.ts.net:8787
+http://amader-home-assistant:8787
 ```
 
-The public deployment will use a Cloudflare Tunnel hostname:
+The verified public PWA and API are available at:
 
 ```text
 https://amader-home-assistant.souptik.dev
 ```
 
-The origin remains non-public and the Cloudflare tunnel forwards only the application hostname. API bearer sessions, one-time pairing, pairing-rate limits, and HMAC-signed doorbell ingestion remain enforced at the application layer.
+The SQLite database and application secrets remain in external host directories and are bind-mounted into the container. The API root filesystem is read-only, capabilities are dropped, the VAPID key is mounted read-only, and the host compatibility port is bound only to Bob's Tailscale address. The retired user-level systemd service is disabled and retained only for rollback.
 
-Docker Compose remains available for a future privileged/container deployment. The verified live deployment currently uses a hardened user-level systemd service and SQLite WAL mode.
+The origin remains non-public and Cloudflare Tunnel forwards only the application hostname. API bearer sessions, one-time pairing, bounded pairing-rate limits, and HMAC-signed doorbell ingestion remain enforced at the application layer.
 
 ## Capabilities
 

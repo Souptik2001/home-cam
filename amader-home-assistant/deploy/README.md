@@ -1,15 +1,17 @@
 # Deploying the server on Bob
 
-The live single-household deployment uses a user-level systemd service, SQLite, and a listener bound only to Bob's Tailscale address. Cloudflare Tunnel is the only intended public ingress.
+The live single-household deployment runs in Docker with SQLite persistence. The existing `frigate-cloudflared` connector reaches the API through a dedicated bridge network; Cloudflare Tunnel is the only intended public ingress.
 
-## Addresses
+## Addresses and containers
 
-- Private origin: `http://100.94.160.64:8787`
-- Temporary private DNS: `http://bob-home.taildba06.ts.net:8787`
 - Public application: `https://amader-home-assistant.souptik.dev`
+- Tunnel origin: `http://amader-home-assistant:8787`
+- API container: `amader-home-assistant` (`172.30.250.3` on `amader-home-tunnel`)
+- Cloudflare connector: `frigate-cloudflared` (`172.30.250.2` on `amader-home-tunnel`)
+- Tailnet-only maintenance origin: `http://100.94.160.64:8787`
 - Camera: `https://camera.souptik.dev`
 
-The origin must not listen on `0.0.0.0`, the LAN address, or a router-forwarded port. The Android application and iPhone PWA use only the public HTTPS application hostname.
+The host port is bound only to Bob's Tailscale address. Do not bind it to `0.0.0.0`, publish it on the LAN, or create a router port-forward. Android and the iPhone PWA use only the public HTTPS hostname.
 
 ## Files outside Git
 
@@ -23,38 +25,55 @@ The origin must not listen on `0.0.0.0`, the LAN address, or a router-forwarded 
 ~/.local/share/amader-home-assistant/data/amader-home-assistant.db
 ```
 
-Secret files are mode `0600`; their containing directories are mode `0700`. Never place VAPID, Firebase, HMAC, pairing, Cloudflare, or Android-signing credentials inside the repository.
+The Compose service bind-mounts the data directory read-write and the VAPID private key read-only. Secret files remain mode `0600`; containing directories remain mode `0700`. Never place VAPID, Firebase, HMAC, pairing, Cloudflare, or Android-signing credentials inside the repository.
+
+## Container network
+
+The dedicated external bridge is created once:
+
+```sh
+docker network create \
+  --driver bridge \
+  --subnet 172.30.250.0/24 \
+  --gateway 172.30.250.1 \
+  amader-home-tunnel
+```
+
+The Frigate Compose definition attaches `frigate-cloudflared` to both `frigate_default` and `amader-home-tunnel`, with address `172.30.250.2`. Keeping cloudflared on `frigate_default` preserves `http://frigate:5000` for the camera route. The checked-in `deploy/frigate-cloudflared.network.override.yaml` records this integration for hosts whose primary Frigate Compose file does not already contain the equivalent block:
+
+```sh
+docker compose \
+  -f /home/bob-home/frigate/compose.yaml \
+  -f /home/bob-home/home-cam/amader-home-assistant/deploy/frigate-cloudflared.network.override.yaml \
+  up -d --no-deps cloudflared
+```
+
+The API joins only `amader-home-tunnel`, with address `172.30.250.3`.
 
 ## Required Web Push environment
 
-`server.env` must include:
+`~/.config/amader-home-assistant/server.env` includes the application settings and secrets. The container overrides host-specific paths with:
 
 ```ini
-WEB_PUSH_VAPID_PUBLIC_KEY=<87-character URL-safe application server key>
-WEB_PUSH_VAPID_PRIVATE_KEY_PATH=/home/bob-home/.config/amader-home-assistant/vapid/private_key.pem
-WEB_PUSH_VAPID_SUBJECT=mailto:<operator-address>
-WEB_PUSH_ALLOWED_HOSTS=["web.push.apple.com","fcm.googleapis.com"]
-WEB_PUSH_TIMEOUT_SECONDS=5
-PAIRING_ATTEMPTS_PER_MINUTE=5
-PAIRING_RATE_LIMIT_MAX_CLIENTS=2048
-TRUSTED_PROXY_NETWORKS=[]
+DATABASE_URL=sqlite:////app/data/amader-home-assistant.db
+WEB_PUSH_VAPID_PRIVATE_KEY_PATH=/run/secrets/web-push-vapid-private.pem
+TRUSTED_PROXY_NETWORKS=["172.30.250.2/32"]
 ```
 
-`TRUSTED_PROXY_NETWORKS` stays empty for direct private access. After the Cloudflare route is active, set it only to the connector's observed origin-side IP/CIDR so `CF-Connecting-IP` can safely separate pairing-rate-limit buckets. Do not trust arbitrary forwarding headers from Tailnet or LAN clients.
+The exact proxy address prevents an untrusted Tailnet or LAN client from spoofing `CF-Connecting-IP` for pairing-rate-limit identity.
 
-## Install/update
+## Build and update
 
 ```sh
-cd /home/bob-home/home-cam/amader-home-assistant/server
-/home/bob-home/.hermes/bin/uv sync --frozen --no-dev
-
-install -Dm600 ../deploy/amader-home-assistant.service \
-  /home/bob-home/.config/systemd/user/amader-home-assistant.service
-systemctl --user daemon-reload
-systemctl --user enable --now amader-home-assistant.service
+cd /home/bob-home/home-cam/amader-home-assistant
+./deploy/preflight-docker.sh
+docker compose config --quiet
+docker compose up -d --build api
 ```
 
-Confirm the current Tailscale IP with `tailscale ip -4` before installing the checked-in unit.
+The preflight resolves the same Compose interpolation and project `.env` values used by deployment. It fails closed if the selected SQLite file or VAPID key is missing, runtime UID/GID `1000:1000` cannot read/write the database directory and WAL sidecars, the database integrity/schema check fails, the shared network has an unexpected subnet, or cloudflared is not attached at its trusted address. Long-form bind mounts also disable Docker's automatic creation of missing source paths, and the container refuses to start without the existing database file.
+
+The application image is tagged `amader-home-assistant-api:0.2.0`; its Python and `uv` bases are pinned by digest for deterministic rebuilds and a named rollback target. The image runs as UID/GID `1000:1000`, has a read-only root filesystem, drops all Linux capabilities, sets `no-new-privileges`, mounts only `/tmp` as tmpfs, and uses one Uvicorn worker because SQLite-backed in-memory throttling is intentionally single-instance.
 
 ## Cloudflare public hostname
 
@@ -62,33 +81,33 @@ Use the existing remotely managed Cloudflare Tunnel for `souptik.dev`:
 
 1. Open **Cloudflare Zero Trust → Networks → Tunnels**.
 2. Open the existing healthy tunnel.
-3. Add a public hostname:
-   - Subdomain: `amader-home-assistant`
-   - Domain: `souptik.dev`
+3. Configure the route:
+   - Hostname: `amader-home-assistant.souptik.dev`
    - Type: `HTTP`
-   - URL: `100.94.160.64:8787`
+   - URL: `amader-home-assistant:8787`
+   - Effective origin: `http://amader-home-assistant:8787`
 4. Do not configure a public router port-forward.
-5. Do not place Cloudflare Access login in front of this hostname: iPhone background Web Push and service-worker API refreshes must reach the application's own bearer-authenticated endpoints. Pairing throttling and HMAC ingestion remain enforced by the application.
-6. Read the origin-side connector address from the Uvicorn access log, set the narrowest correct `TRUSTED_PROXY_NETWORKS` entry, restart the API, and verify that spoofed `CF-Connecting-IP` from a non-trusted peer is ignored.
-
-`deploy/amader-cloudflared.service` is an optional host-level connector template. Its token file must remain outside Git. Do not start a duplicate connector when the existing tunnel connector is healthy.
+5. Do not place Cloudflare Access in front of this hostname. Background Web Push and service-worker API requests use the application's bearer/HMAC authentication and cannot complete an interactive Access redirect.
 
 ## Verification
 
 ```sh
-systemctl --user is-enabled amader-home-assistant.service
-systemctl --user is-active amader-home-assistant.service
-curl --fail http://100.94.160.64:8787/health/live
-curl --fail http://100.94.160.64:8787/health/ready
-ss -ltnp '( sport = :8787 )'
+docker inspect amader-home-assistant \
+  --format 'status={{.State.Status}} health={{.State.Health.Status}}'
 
-curl --fail https://amader-home-assistant.souptik.dev/health/live
+docker run --rm --network container:frigate-cloudflared \
+  curlimages/curl:8.16.0 --fail \
+  http://amader-home-assistant:8787/health/ready
+
+curl --fail http://100.94.160.64:8787/health/ready
 curl --fail https://amader-home-assistant.souptik.dev/health/ready
 curl --fail https://amader-home-assistant.souptik.dev/manifest.webmanifest | python3 -m json.tool
-curl --fail --head https://amader-home-assistant.souptik.dev/sw.js
+curl --fail --head 'https://amader-home-assistant.souptik.dev/sw.js?v=2'
 ```
 
-The final device acceptance test must install the PWA from the public HTTPS hostname, pair it, enable notifications, ring the doorbell, and verify a locked-screen notification whose tap opens `https://camera.souptik.dev`.
+The service-worker response must include `Cache-Control: no-store, no-cache, must-revalidate`, `Service-Worker-Allowed: /`, and a Cloudflare cache status of `BYPASS` or `DYNAMIC`.
+
+The final device acceptance test installs the PWA from the public HTTPS hostname, pairs it, enables notifications, rings the doorbell, and verifies a locked-screen notification whose tap opens `https://camera.souptik.dev`.
 
 ## Push notifications
 
@@ -102,7 +121,7 @@ or `FIREBASE_CREDENTIALS_JSON`.
 
 ## Backup
 
-Use SQLite's online backup API while the service is active:
+Use SQLite's online backup API while the container is active:
 
 ```sh
 python3 - <<'PY'
@@ -119,6 +138,9 @@ PY
 ## Logs and rollback
 
 ```sh
-journalctl --user -u amader-home-assistant.service -n 100 --no-pager
-systemctl --user disable --now amader-home-assistant.service
+docker logs --tail 100 amader-home-assistant
+docker compose stop api
+systemctl --user enable --now amader-home-assistant.service
 ```
+
+The retired systemd unit remains available only as a rollback path. Never run the systemd and Docker instances concurrently against the same SQLite database.

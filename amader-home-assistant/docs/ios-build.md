@@ -81,7 +81,7 @@ flutter run --release \
 When the app opens, pair it using:
 
 ```text
-Server URL: http://bob-home.taildba06.ts.net:8787
+Server URL: https://amader-home-assistant.souptik.dev
 Pairing code: obtain the current one-time code from Bob
 ```
 

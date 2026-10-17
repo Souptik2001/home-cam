@@ -125,7 +125,8 @@ def create_app(
             "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
         )
         if request.url.path == "/sw.js":
-            response.headers["Cache-Control"] = "no-cache"
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Cloudflare-CDN-Cache-Control"] = "no-store"
             response.headers["Service-Worker-Allowed"] = "/"
         return response
 

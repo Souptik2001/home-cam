@@ -1,0 +1,78 @@
+name: amader-home-assistant
+
+services:
+  api:
+    container_name: amader-home-assistant
+    build:
+      context: ./server
+    image: amader-home-assistant-api:0.2.0
+    user: "1000:1000"
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 20s
+    env_file:
+      - ${SERVER_ENV_FILE:-/home/bob-home/.config/amader-home-assistant/server.env}
+    environment:
+      DATABASE_URL: sqlite:////app/data/amader-home-assistant.db
+      TRUSTED_PROXY_NETWORKS: '["172.30.250.2/32"]'
+      WEB_PUSH_VAPID_PRIVATE_KEY_PATH: /run/secrets/web-push-vapid-private.pem
+      FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-service-account.json
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        test -f /app/data/amader-home-assistant.db
+        exec uvicorn amader_home_assistant.main:app \
+          --host 0.0.0.0 --port 8787 --workers 1
+    volumes:
+      - type: bind
+        source: ${DATA_DIR:-/home/bob-home/.local/share/amader-home-assistant/data}
+        target: /app/data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${WEB_PUSH_VAPID_PRIVATE_KEY_FILE:-/home/bob-home/.config/amader-home-assistant/vapid/private_key.pem}
+        target: /run/secrets/web-push-vapid-private.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${FIREBASE_CREDENTIALS_FILE:-/home/bob-home/.config/amader-home-assistant/firebase/firebase-service-account.json}
+        target: /run/secrets/firebase-service-account.json
+        read_only: true
+        bind:
+          create_host_path: false
+    ports:
+      - "${API_BIND_ADDRESS:-100.94.160.64}:${API_PORT:-8787}:8787"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/health/ready', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      tunnel:
+        ipv4_address: 172.30.250.3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  tunnel:
+    external: true
+    name: amader-home-tunnel

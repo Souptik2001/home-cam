@@ -1,0 +1,22 @@
+[Unit]
+Description=Amader Home Assistant API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/bob-home/home-cam/amader-home-assistant/server
+EnvironmentFile=/home/bob-home/.config/amader-home-assistant/server.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/bob-home/home-cam/amader-home-assistant/server/.venv/bin/python -m uvicorn amader_home_assistant.main:app --host 100.94.160.64 --port 8787 --workers 1
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,30 @@
+# Local and generated files
+.env
+*.log
+.DS_Store
+
+# Private signing and provider credentials
+amader-home-assistant/secrets/
+*.pem
+*.key
+*.p12
+*.jks
+key.properties
+google-services.json
+
+# Python
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/dist/
+
+# Flutter / Dart
+amader-home-assistant/app/.dart_tool/
+amader-home-assistant/app/build/
+amader-home-assistant/app/.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/

@@ -5,11 +5,73 @@ import 'package:amader_home_assistant/core/network/api_client.dart';
 import 'package:amader_home_assistant/core/routing/app_route.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 abstract interface class NotificationService {
   Future<void> initialize(void Function(AppRoute route) onRoute);
   Future<void> dispose();
+}
+
+typedef FcmRegistrationErrorHandler = void Function(
+  Object error,
+  StackTrace stackTrace,
+);
+
+class FcmTokenRegistration {
+  FcmTokenRegistration({
+    required this.getToken,
+    required this.tokenRefreshes,
+    required this.registerToken,
+    this.onError,
+  });
+
+  final Future<String?> Function() getToken;
+  final Stream<String> tokenRefreshes;
+  final Future<void> Function(String token) registerToken;
+  final FcmRegistrationErrorHandler? onError;
+  StreamSubscription<String>? _subscription;
+  Future<void> _queue = Future<void>.value();
+  String? _lastRegisteredToken;
+  bool _started = false;
+  bool _disposed = false;
+
+  Future<void> start() async {
+    if (_started) return;
+    _started = true;
+    _subscription = tokenRefreshes.listen(
+      (token) => unawaited(_enqueue(token)),
+      onError: (Object error, StackTrace stackTrace) {
+        onError?.call(error, stackTrace);
+      },
+    );
+    try {
+      final initialToken = await getToken();
+      if (initialToken != null) await _enqueue(initialToken);
+    } catch (error, stackTrace) {
+      onError?.call(error, stackTrace);
+    }
+  }
+
+  Future<void> _enqueue(String token) {
+    if (_disposed || token.isEmpty) return Future<void>.value();
+    _queue = _queue.then((_) async {
+      if (_disposed || token == _lastRegisteredToken) return;
+      try {
+        await registerToken(token);
+        if (!_disposed) _lastRegisteredToken = token;
+      } catch (error, stackTrace) {
+        onError?.call(error, stackTrace);
+      }
+    });
+    return _queue;
+  }
+
+  Future<void> dispose() async {
+    _disposed = true;
+    await _subscription?.cancel();
+    await _queue;
+  }
 }
 
 class NoopNotificationService implements NotificationService {
@@ -29,6 +91,7 @@ class FirebaseNotificationService implements NotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   final List<StreamSubscription<Object?>> _subscriptions = [];
+  FcmTokenRegistration? _tokenRegistration;
 
   @override
   Future<void> initialize(void Function(AppRoute route) onRoute) async {
@@ -73,16 +136,19 @@ class FirebaseNotificationService implements NotificationService {
         }
       }),
     );
-    _subscriptions.add(
-      messaging.onRegistered.listen((token) {
-        unawaited(
-          _registerToken(token).catchError((Object error) {
-            // A notification registration failure must not prevent app startup.
-          }),
-        );
-      }),
+    _tokenRegistration = FcmTokenRegistration(
+      // FCM registration tokens remain the compatibility path for devices
+      // where the new FID registration event is not emitted.
+      // ignore: deprecated_member_use
+      getToken: messaging.getToken,
+      // ignore: deprecated_member_use
+      tokenRefreshes: messaging.onTokenRefresh,
+      registerToken: _registerToken,
+      onError: (error, _) {
+        debugPrint('FCM registration failed: $error');
+      },
     );
-    await messaging.register();
+    unawaited(_tokenRegistration!.start());
   }
 
   Future<void> _showAndroidForegroundNotification(RemoteMessage message) async {
@@ -120,6 +186,8 @@ class FirebaseNotificationService implements NotificationService {
 
   @override
   Future<void> dispose() async {
+    await _tokenRegistration?.dispose();
+    _tokenRegistration = null;
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }

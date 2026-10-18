@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import urlparse
@@ -135,8 +136,9 @@ class FirebasePushSender:
                 data=message.data,
                 android=messaging.AndroidConfig(
                     priority="high",
+                    ttl=timedelta(seconds=0),
                     notification=messaging.AndroidNotification(
-                        channel_id="doorbell_alerts",
+                        channel_id="doorbell_critical_alerts",
                         sound="default",
                         default_vibrate_timings=True,
                         priority="max",

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import sys
+from datetime import timedelta
+from types import ModuleType, SimpleNamespace
+from typing import Any
 
 import pytest
 
 from amader_home_assistant.config import Settings
 from amader_home_assistant.push import (
+    FirebasePushSender,
     PushMessage,
     WebPushSender,
     create_web_push_sender,
@@ -109,3 +114,55 @@ def test_create_web_push_sender_rejects_mismatched_key_pair(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="does not match"):
         create_web_push_sender(settings)
+
+
+class _MessagingFactory:
+    def __call__(self, **kwargs):
+        return SimpleNamespace(**kwargs)
+
+
+def test_android_doorbell_push_uses_immediate_delivery_and_critical_channel(
+    monkeypatch,
+) -> None:
+    captured: dict[str, Any] = {}
+    messaging = ModuleType("firebase_admin.messaging")
+    for name in (
+        "Notification",
+        "AndroidConfig",
+        "AndroidNotification",
+        "APNSConfig",
+        "APNSPayload",
+        "Aps",
+        "Message",
+    ):
+        setattr(messaging, name, _MessagingFactory())
+
+    def send(message, *, app):
+        captured["message"] = message
+        captured["app"] = app
+        return "projects/test/messages/1"
+
+    messaging.send = send  # type: ignore[attr-defined]
+    firebase_admin = ModuleType("firebase_admin")
+    firebase_admin.messaging = messaging  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "firebase_admin", firebase_admin)
+    monkeypatch.setitem(sys.modules, "firebase_admin.messaging", messaging)
+
+    sender = FirebasePushSender.__new__(FirebasePushSender)
+    sender._app = object()
+    sender._ios_critical_alerts_enabled = False
+
+    sender.send(
+        "test-token",
+        PushMessage(
+            title="Door bell",
+            body="Someone is at the door.",
+            data={"route": "camera"},
+        ),
+    )
+
+    message = captured["message"]
+    assert message.android.priority == "high"
+    assert message.android.ttl == timedelta(seconds=0)
+    assert message.android.notification.channel_id == "doorbell_critical_alerts"
+    assert message.android.notification.priority == "max"

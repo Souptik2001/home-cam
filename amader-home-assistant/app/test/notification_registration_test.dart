@@ -4,6 +4,10 @@ import 'package:amader_home_assistant/core/notifications/notification_service.da
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('uses the dedicated critical Android doorbell channel', () {
+    expect(doorbellNotificationChannelId, 'doorbell_critical_alerts');
+  });
+
   test('registers the initial FCM token and later token refreshes', () async {
     final refreshes = StreamController<String>();
     final registered = <String>[];

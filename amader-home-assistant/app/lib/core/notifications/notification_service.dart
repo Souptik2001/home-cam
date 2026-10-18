@@ -18,6 +18,8 @@ typedef FcmRegistrationErrorHandler = void Function(
   StackTrace stackTrace,
 );
 
+const doorbellNotificationChannelId = 'doorbell_critical_alerts';
+
 class FcmTokenRegistration {
   FcmTokenRegistration({
     required this.getToken,
@@ -161,8 +163,8 @@ class FirebaseNotificationService implements NotificationService {
       body: notification?.body ?? 'The doorbell was pressed.',
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
-          'doorbell_alerts',
-          'Doorbell alerts',
+          doorbellNotificationChannelId,
+          'Critical doorbell alerts',
           channelDescription: 'Alerts when someone rings the doorbell',
           importance: Importance.max,
           priority: Priority.max,

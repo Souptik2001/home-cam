@@ -29,7 +29,11 @@ config = json.loads(
 )
 api = config["services"]["api"]
 volumes = {item["target"]: item["source"] for item in api.get("volumes", [])}
-for target in ("/app/data", "/run/secrets/web-push-vapid-private.pem"):
+for target in (
+    "/app/data",
+    "/run/secrets/web-push-vapid-private.pem",
+    "/run/secrets/firebase-service-account.json",
+):
     source = volumes.get(target)
     if not source:
         raise SystemExit(f"Compose is missing the required bind for {target}")
@@ -38,18 +42,21 @@ print(api.get("user") or "")
 PY
 )
 
-[[ ${#RESOLVED[@]} -eq 3 ]] || fail "could not resolve Compose bind sources"
+[[ ${#RESOLVED[@]} -eq 4 ]] || fail "could not resolve Compose bind sources"
 DATA_DIR="${RESOLVED[0]}"
 VAPID_KEY="${RESOLVED[1]}"
-RUNTIME_USER="${RESOLVED[2]}"
+FIREBASE_CREDENTIALS="${RESOLVED[2]}"
+RUNTIME_USER="${RESOLVED[3]}"
 DATABASE_FILE="$DATA_DIR/amader-home-assistant.db"
 
 [[ "$RUNTIME_USER" == "1000:1000" ]] || fail "Compose runtime user must be 1000:1000"
 [[ -d "$DATA_DIR" ]] || fail "data directory does not exist: $DATA_DIR"
 [[ -f "$DATABASE_FILE" ]] || fail "existing SQLite database is missing: $DATABASE_FILE"
 [[ -f "$VAPID_KEY" ]] || fail "VAPID private key is missing: $VAPID_KEY"
+[[ -f "$FIREBASE_CREDENTIALS" ]] || fail "Firebase service-account credential is missing: $FIREBASE_CREDENTIALS"
 
-python3 - "$DATA_DIR" "$DATABASE_FILE" "$VAPID_KEY" "$RUNTIME_USER" <<'PY'
+python3 - "$DATA_DIR" "$DATABASE_FILE" "$VAPID_KEY" "$FIREBASE_CREDENTIALS" "$RUNTIME_USER" <<'PY'
+import json
 import sqlite3
 import sys
 from pathlib import Path
@@ -58,7 +65,8 @@ from pathlib import Path
 data_dir = Path(sys.argv[1])
 database_file = Path(sys.argv[2])
 vapid_key = Path(sys.argv[3])
-uid, gid = (int(value) for value in sys.argv[4].split(":", 1))
+firebase_credentials = Path(sys.argv[4])
+uid, gid = (int(value) for value in sys.argv[5].split(":", 1))
 
 
 def require_mode(path: Path, required: int, label: str) -> None:
@@ -75,9 +83,30 @@ def require_mode(path: Path, required: int, label: str) -> None:
         )
 
 
+def require_private_file(path: Path, label: str) -> None:
+    require_mode(path, 0o4, label)
+    if path.stat().st_mode & 0o077:
+        raise SystemExit(f"{label} must not be accessible by group or others: {path}")
+    if path.parent.stat().st_mode & 0o077:
+        raise SystemExit(
+            f"{label} parent directory must not be accessible by group or others: "
+            f"{path.parent}"
+        )
+
+
 require_mode(data_dir, 0o7, "SQLite data directory")
 require_mode(database_file, 0o6, "SQLite database")
-require_mode(vapid_key, 0o4, "VAPID private key")
+require_private_file(vapid_key, "VAPID private key")
+require_private_file(firebase_credentials, "Firebase service-account credential")
+try:
+    firebase = json.loads(firebase_credentials.read_text())
+except (OSError, json.JSONDecodeError) as exc:
+    raise SystemExit(f"Firebase service-account credential is invalid: {exc}") from exc
+if firebase.get("type") != "service_account":
+    raise SystemExit("Firebase credential is not a service-account JSON file")
+for field in ("project_id", "private_key", "client_email"):
+    if not firebase.get(field):
+        raise SystemExit(f"Firebase service-account credential is missing {field}")
 for suffix in ("-wal", "-shm"):
     sidecar = Path(f"{database_file}{suffix}")
     if sidecar.exists():

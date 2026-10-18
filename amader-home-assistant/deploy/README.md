@@ -22,10 +22,11 @@ The host port is bound only to Bob's Tailscale address. Do not bind it to `0.0.0
 ~/.config/amader-home-assistant/vapid/private_key.pem
 ~/.config/amader-home-assistant/vapid/public_key.pem
 ~/.config/amader-home-assistant/vapid/application-server-key.txt
+~/.config/amader-home-assistant/firebase/firebase-service-account.json
 ~/.local/share/amader-home-assistant/data/amader-home-assistant.db
 ```
 
-The Compose service bind-mounts the data directory read-write and the VAPID private key read-only. Secret files remain mode `0600`; containing directories remain mode `0700`. Never place VAPID, Firebase, HMAC, pairing, Cloudflare, or Android-signing credentials inside the repository.
+The Compose service bind-mounts the data directory read-write and both the VAPID private key and Firebase service-account credential read-only. Secret files remain mode `0600`; containing directories remain mode `0700`. Never place VAPID, Firebase, HMAC, pairing, Cloudflare, or Android-signing credentials inside the repository.
 
 ## Container network
 
@@ -57,6 +58,7 @@ The API joins only `amader-home-tunnel`, with address `172.30.250.3`.
 ```ini
 DATABASE_URL=sqlite:////app/data/amader-home-assistant.db
 WEB_PUSH_VAPID_PRIVATE_KEY_PATH=/run/secrets/web-push-vapid-private.pem
+FIREBASE_CREDENTIALS_PATH=/run/secrets/firebase-service-account.json
 TRUSTED_PROXY_NETWORKS=["172.30.250.2/32"]
 ```
 
@@ -71,7 +73,7 @@ docker compose config --quiet
 docker compose up -d --build api
 ```
 
-The preflight resolves the same Compose interpolation and project `.env` values used by deployment. It fails closed if the selected SQLite file or VAPID key is missing, runtime UID/GID `1000:1000` cannot read/write the database directory and WAL sidecars, the database integrity/schema check fails, the shared network has an unexpected subnet, or cloudflared is not attached at its trusted address. Long-form bind mounts also disable Docker's automatic creation of missing source paths, and the container refuses to start without the existing database file.
+The preflight resolves the same Compose interpolation and project `.env` values used by deployment. It fails closed if the selected SQLite file, VAPID key, or Firebase service-account credential is missing; if either secret file or its parent directory has group/other access; if the runtime UID/GID `1000:1000` cannot read/write the database directory and WAL sidecars; if the Firebase JSON is malformed or lacks required service-account fields; if the database integrity/schema check fails; if the shared network has an unexpected subnet; or if cloudflared is not attached at its trusted address. Long-form bind mounts also disable Docker's automatic creation of missing source paths, and the container refuses to start without the existing database and credential files.
 
 The application image is tagged `amader-home-assistant-api:0.2.0`; its Python and `uv` bases are pinned by digest for deterministic rebuilds and a named rollback target. The image runs as UID/GID `1000:1000`, has a read-only root filesystem, drops all Linux capabilities, sets `no-new-privileges`, mounts only `/tmp` as tmpfs, and uses one Uvicorn worker because SQLite-backed in-memory throttling is intentionally single-instance.
 
@@ -111,13 +113,13 @@ The final device acceptance test installs the PWA from the public HTTPS hostname
 
 ## Push notifications
 
-The iPhone PWA uses VAPID Web Push. Native Android Firebase delivery remains safely disabled until one of these is configured outside Git:
+The iPhone PWA uses VAPID Web Push. Native Android delivery uses Firebase Cloud Messaging through the required service-account credential at:
 
-```ini
-FIREBASE_CREDENTIALS_PATH=/home/bob-home/.config/amader-home-assistant/firebase-service-account.json
+```text
+/home/bob-home/.config/amader-home-assistant/firebase/firebase-service-account.json
 ```
 
-or `FIREBASE_CREDENTIALS_JSON`.
+Compose mounts it read-only at `/run/secrets/firebase-service-account.json` and sets `FIREBASE_CREDENTIALS_PATH` to that container path. The Admin credential must never be copied into the Android project or APK; the Android build uses the separately ignored `app/android/app/google-services.json` file.
 
 ## Backup
 

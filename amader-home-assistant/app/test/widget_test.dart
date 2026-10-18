@@ -26,7 +26,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Pair your doorbell'), findsOneWidget);
+    expect(find.text('Amader Home Assistant'), findsOneWidget);
     expect(find.text('Server URL'), findsOneWidget);
     expect(find.text('Pairing code'), findsOneWidget);
   });

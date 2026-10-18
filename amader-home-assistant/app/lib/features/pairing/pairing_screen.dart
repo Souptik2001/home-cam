@@ -81,13 +81,9 @@ class _PairingScreenState extends State<PairingScreen> {
                     const Icon(Icons.doorbell_outlined, size: 72),
                     const SizedBox(height: 20),
                     Text(
-                      'Pair your doorbell',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Enter the server address and one-time pairing code.',
+                      'Amader Home Assistant',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 28),

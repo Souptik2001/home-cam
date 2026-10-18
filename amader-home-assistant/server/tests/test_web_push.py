@@ -16,19 +16,21 @@ def test_pwa_assets_are_served_with_installable_manifest(client: TestClient) -> 
     service_worker = client.get("/sw.js")
 
     assert index.status_code == 200
-    assert "Amader Home Assistant" in index.text
+    assert index.text.count("Amader Home Assistant") == 2
+    assert "PRIVATE DOORBELL" not in index.text
+    assert "Doorbell history and instant camera access." not in index.text
     assert 'rel="manifest"' in index.text
-    assert 'href="/styles.css?v=2"' in index.text
-    assert 'src="/app.js?v=2"' in index.text
+    assert 'href="/styles.css?v=3"' in index.text
+    assert 'src="/app.js?v=3"' in index.text
     assert manifest.status_code == 200
     assert manifest.json()["display"] == "standalone"
     assert manifest.json()["start_url"] == "/"
     assert app_script.status_code == 200
-    assert 'serviceWorker.register("/sw.js?v=2")' in app_script.text
+    assert 'serviceWorker.register("/sw.js?v=3")' in app_script.text
     assert service_worker.status_code == 200
-    assert 'const CACHE = "amader-home-v2"' in service_worker.text
-    assert '"/styles.css?v=2"' in service_worker.text
-    assert '"/app.js?v=2"' in service_worker.text
+    assert 'const CACHE = "amader-home-v3"' in service_worker.text
+    assert '"/styles.css?v=3"' in service_worker.text
+    assert '"/app.js?v=3"' in service_worker.text
     assert "notificationclick" in service_worker.text
     assert (
         service_worker.headers["cache-control"] == "no-store, no-cache, must-revalidate"

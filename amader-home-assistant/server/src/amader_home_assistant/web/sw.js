@@ -1,8 +1,8 @@
-const CACHE = "amader-home-v2";
+const CACHE = "amader-home-v3";
 const SHELL = [
   "/",
-  "/styles.css?v=2",
-  "/app.js?v=2",
+  "/styles.css?v=3",
+  "/app.js?v=3",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

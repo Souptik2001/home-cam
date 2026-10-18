@@ -102,7 +102,7 @@ docker run --rm --network container:frigate-cloudflared \
 curl --fail http://100.94.160.64:8787/health/ready
 curl --fail https://amader-home-assistant.souptik.dev/health/ready
 curl --fail https://amader-home-assistant.souptik.dev/manifest.webmanifest | python3 -m json.tool
-curl --fail --head 'https://amader-home-assistant.souptik.dev/sw.js?v=2'
+curl --fail --head 'https://amader-home-assistant.souptik.dev/sw.js?v=3'
 ```
 
 The service-worker response must include `Cache-Control: no-store, no-cache, must-revalidate`, `Service-Worker-Allowed: /`, and a Cloudflare cache status of `BYPASS` or `DYNAMIC`.

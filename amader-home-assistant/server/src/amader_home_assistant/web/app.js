@@ -209,7 +209,7 @@ document.querySelector("#disconnect-button").addEventListener("click", async () 
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js?v=2").catch(() => {
+  navigator.serviceWorker.register("/sw.js?v=3").catch(() => {
     setStatus("The notification service could not start.", true);
   });
 }

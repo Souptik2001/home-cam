@@ -13,6 +13,26 @@ class FakePairingService implements PairingService {
 }
 
 void main() {
+  testWidgets('pairing shows a single Amader Home Assistant heading', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PairingScreen(
+          pairingService: FakePairingService(),
+          onPaired: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Amader Home Assistant'), findsOneWidget);
+    expect(find.text('Pair your doorbell'), findsNothing);
+    expect(
+      find.text('Enter the server address and one-time pairing code.'),
+      findsNothing,
+    );
+  });
+
   testWidgets('pairing submits a normalized server URL and code', (
     tester,
   ) async {

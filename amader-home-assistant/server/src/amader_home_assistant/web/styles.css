@@ -45,7 +45,12 @@ button { cursor: pointer; }
 }
 
 h1, h2, p { margin-top: 0; }
-h1 { margin-bottom: 0.2rem; font-size: clamp(2rem, 8vw, 3.25rem); letter-spacing: -0.055em; }
+h1 {
+  margin-bottom: 0;
+  font-size: clamp(1.75rem, 7vw, 2.65rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
 h2 { margin-bottom: 0.5rem; letter-spacing: -0.025em; }
 
 .eyebrow {

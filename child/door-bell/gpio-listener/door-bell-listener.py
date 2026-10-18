@@ -1,96 +1,156 @@
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
 import os
+import secrets
+import time
+from datetime import UTC, datetime
 from signal import pause
+from urllib.parse import urlparse
 
 import requests
 from gpiozero import Button
 
 GPIO_PIN = 17
+INGEST_PATH = "/api/v1/ingest/doorbell"
 
 
-def action_on_door_bell_ring(
-    home_assistant_url,
-    home_assistant_token,
-    notify_service,
-    camera_feed_url,
-):
-    print("Door bell rang... Executing actions...", flush=True)
+def build_signed_event(
+    server_url: str,
+    source_id: str,
+    hmac_secret: str,
+    *,
+    timestamp: int | None = None,
+    nonce: str | None = None,
+) -> tuple[str, bytes, dict[str, str]]:
+    server_url = server_url.rstrip("/")
+    parsed = urlparse(server_url)
+    if parsed.scheme != "https" or not parsed.netloc:
+        raise ValueError("AMADER_HOME_ASSISTANT_URL must be a valid HTTPS URL")
+    if not source_id:
+        raise ValueError("AMADER_DOORBELL_SOURCE must not be empty")
+    if len(hmac_secret) < 32:
+        raise ValueError("AMADER_DOORBELL_HMAC_SECRET must be at least 32 characters")
 
-    notify_service = notify_service.removeprefix("notify.")
-    notification_data = {
-        "ttl": 0,
-        "priority": "high",
-        "channel": "alarm_stream",
-        "push": {
-            "sound": {
-                "name": "alarm.caf",
-                "critical": 1,
-                "volume": 1.0,
-            }
+    event_timestamp = int(time.time()) if timestamp is None else int(timestamp)
+    event_nonce = secrets.token_urlsafe(24) if nonce is None else nonce
+    occurred_at = (
+        datetime.fromtimestamp(event_timestamp, UTC)
+        .isoformat(timespec="seconds")
+        .replace("+00:00", "Z")
+    )
+    body = json.dumps(
+        {
+            "event_type": "doorbell",
+            "metadata": {"trigger": "gpio17"},
+            "occurred_at": occurred_at,
         },
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
+    canonical = b".".join(
+        [
+            source_id.encode(),
+            str(event_timestamp).encode(),
+            event_nonce.encode(),
+            body,
+        ]
+    )
+    signature = hmac.new(hmac_secret.encode(), canonical, hashlib.sha256).hexdigest()
+    headers = {
+        "Content-Type": "application/json",
+        "X-Doorbell-Source": source_id,
+        "X-Doorbell-Timestamp": str(event_timestamp),
+        "X-Doorbell-Nonce": event_nonce,
+        "X-Doorbell-Signature": f"sha256={signature}",
     }
+    return server_url + INGEST_PATH, body, headers
 
-    if camera_feed_url:
-        notification_data["url"] = camera_feed_url
-        notification_data["clickAction"] = camera_feed_url
 
-    try:
-        response = requests.post(
-            (
-                home_assistant_url.rstrip("/")
-                + f"/api/services/notify/{notify_service}"
-            ),
-            json={
-                "title": "Door bell",
-                "message": "Someone is at the door.",
-                "data": notification_data,
-            },
-            headers={
-                "Authorization": "Bearer " + home_assistant_token,
-                "Content-Type": "application/json",
-            },
-            timeout=10,
-        )
+def send_doorbell_event(
+    server_url: str,
+    source_id: str,
+    hmac_secret: str,
+    *,
+    attempts: int = 3,
+    timeout: float = 10,
+) -> bool:
+    url, body, headers = build_signed_event(server_url, source_id, hmac_secret)
+    attempts = max(1, attempts)
 
-        if response.status_code in (200, 201):
-            print("Notification sent successfully!", flush=True)
-        else:
+    for attempt in range(1, attempts + 1):
+        try:
+            response = requests.post(
+                url,
+                data=body,
+                headers=headers,
+                timeout=timeout,
+                allow_redirects=False,
+            )
+        except requests.RequestException as exc:
+            if attempt == attempts:
+                print(
+                    f"Doorbell event failed after {attempts} attempts: {exc}",
+                    flush=True,
+                )
+                return False
             print(
-                "Home Assistant notification failed with status code "
-                f"{response.status_code}: {response.text}",
+                f"Doorbell event attempt {attempt} failed; retrying: {exc}",
                 flush=True,
             )
+            time.sleep(1)
+            continue
 
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}", flush=True)
+        if response.status_code in (200, 201):
+            print("Doorbell event delivered successfully!", flush=True)
+            return True
+        if response.status_code >= 500 and attempt < attempts:
+            print(
+                f"Doorbell server returned {response.status_code}; retrying.",
+                flush=True,
+            )
+            time.sleep(1)
+            continue
 
-
-def main():
-    home_assistant_url = os.getenv("HOME_ASSISTANT_URL", "")
-    home_assistant_token = os.getenv("HOME_ASSISTANT_TOKEN", "")
-    notify_service = os.getenv("HOME_ASSISTANT_NOTIFY_SERVICE", "")
-    camera_feed_url = os.getenv("CAMERA_FEED_URL", "")
-
-    if not home_assistant_url or not home_assistant_token or not notify_service:
-        raise SystemExit(
-            "HOME_ASSISTANT_URL, HOME_ASSISTANT_TOKEN, and "
-            "HOME_ASSISTANT_NOTIFY_SERVICE must be configured."
+        print(
+            f"Doorbell event failed with status {response.status_code}: "
+            f"{response.text}",
+            flush=True,
         )
+        return False
 
-    # From Souptik: uncomment this block to send one test notification and exit.
-    # The return prevents the GPIO listener below from being registered.
-    # action_on_door_bell_ring(home_assistant_url, home_assistant_token, notify_service, camera_feed_url)
-    # return
+    return False
+
+
+def main() -> None:
+    server_url = os.getenv("AMADER_HOME_ASSISTANT_URL", "")
+    source_id = os.getenv("AMADER_DOORBELL_SOURCE", "")
+    hmac_secret = os.getenv("AMADER_DOORBELL_HMAC_SECRET", "")
+    attempts = int(os.getenv("AMADER_REQUEST_ATTEMPTS", "3"))
+    timeout = float(os.getenv("AMADER_REQUEST_TIMEOUT_SECONDS", "10"))
+
+    if not server_url or not source_id or not hmac_secret:
+        raise SystemExit(
+            "AMADER_HOME_ASSISTANT_URL, AMADER_DOORBELL_SOURCE, and "
+            "AMADER_DOORBELL_HMAC_SECRET must be configured."
+        )
 
     # Keep GPIO 17 HIGH while idle and trigger when the input becomes LOW.
     button = Button(GPIO_PIN, pull_up=True, bounce_time=0.1)
-    button.when_pressed = lambda: action_on_door_bell_ring(
-        home_assistant_url,
-        home_assistant_token,
-        notify_service,
-        camera_feed_url,
+    button.when_pressed = lambda: send_doorbell_event(
+        server_url,
+        source_id,
+        hmac_secret,
+        attempts=attempts,
+        timeout=timeout,
     )
 
-    print(f"Listening for a LOW signal on GPIO {GPIO_PIN}...", flush=True)
+    print(
+        f"Listening for a LOW signal on GPIO {GPIO_PIN} for source {source_id}...",
+        flush=True,
+    )
     pause()
 
 

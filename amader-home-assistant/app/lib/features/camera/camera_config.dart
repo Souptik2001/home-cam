@@ -8,11 +8,6 @@ Uri parseCameraUri(Object? value) {
   return uri;
 }
 
-bool isAllowedCameraNavigation(Uri cameraUri, Uri candidate) {
-  return candidate.scheme == cameraUri.scheme &&
-      candidate.host == cameraUri.host;
-}
-
 abstract interface class CameraConfigRepository {
   Future<Uri> fetchCameraUri();
 }

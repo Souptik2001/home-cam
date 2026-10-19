@@ -75,5 +75,10 @@ class EventResponse(BaseModel):
     metadata: dict[str, Any]
 
 
+class EventPageResponse(BaseModel):
+    events: list[EventResponse]
+    next_cursor: str | None = None
+
+
 class CameraConfigResponse(BaseModel):
     base_url: str

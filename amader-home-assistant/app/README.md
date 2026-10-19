@@ -4,7 +4,7 @@ Flutter Android/iOS client for the Amader Home Assistant doorbell. Mobile v1 inc
 
 - first-run server URL and pairing-code setup;
 - session-token storage with `flutter_secure_storage`;
-- authenticated event history, newest first, with local date/time and loading, refresh, empty, and error states;
+- authenticated event history, grouped by local date and loaded incrementally as the user scrolls, with refresh, empty, and error states;
 - event-row links to Frigate 0.18+ History for the configured camera at the exact event timestamp;
 - camera and notification navigation through the authenticated system browser;
 - notification route parsing so a `/camera` payload opens the Camera screen;
@@ -32,7 +32,7 @@ flutter run
 The app currently expects these endpoints under the base URL entered during pairing:
 
 - `POST /api/v1/pair` with `{"code":"...","name":"Amader Home Assistant mobile"}`; returns `{"token":"..."}` (a `session_token` alias is also accepted).
-- `GET /api/v1/events` with `Authorization: Bearer <session token>`; returns an array or `{"events": [...]}`. Each event needs `id` and `occurred_at` (the aliases `timestamp` and `created_at` are accepted). The app reads `event_type` and optional `metadata.title`, `metadata.message`, or `metadata.body` fields.
+- `GET /api/v1/events?paginated=true&limit=20&cursor=...` with `Authorization: Bearer SESSION_TOKEN`; returns `{"events": [...], "next_cursor": "..."}` (the legacy array response is also accepted). Each event needs `id` and `occurred_at` (the aliases `timestamp` and `created_at` are accepted); `received_at` is used to preserve server ordering for tied occurrence times. The app reads `event_type` and optional `metadata.title`, `metadata.message`, or `metadata.body` fields.
 - `POST /api/v1/devices` with authentication and `{"name":"Amader Home Assistant mobile","platform":"android|ios","push_token":"...","enabled":true}` when Firebase registration becomes available.
 
 Notification data may contain `route: /camera`, `route: camera`, or `screen: camera`.

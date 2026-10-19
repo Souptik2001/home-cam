@@ -106,6 +106,8 @@ button.primary, form button { border-color: #14b8a6; background: #0f766e; }
 .icon-button { width: 3rem; padding: 0; font-size: 1.35rem; }
 
 .events { display: grid; gap: 0.75rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.event-date { margin-top: 0.65rem; color: #ccfbf1; font-size: 1rem; font-weight: 700; }
+.events-sentinel { padding: 1rem; text-align: center; color: #9cc8be; }
 .event {
   display: grid;
   grid-template-columns: auto 1fr;

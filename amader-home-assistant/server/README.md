@@ -78,7 +78,7 @@ Public machine and frontend endpoints:
 
 Bearer-protected household endpoints:
 
-- `GET /api/v1/events?limit=50` (newest first; maximum 200)
+- `GET /api/v1/events?paginated=true&limit=20&cursor=...` (newest first; maximum paginated page size 100; returns `events` and an opaque `next_cursor`). Without `paginated=true`, the legacy list response remains available with limits up to 200.
 - `POST /api/v1/devices`
 - `PUT /api/v1/devices/{device_id}`
 - `GET /api/v1/camera/config` (returns `https://camera.souptik.dev/#pi_cam_2` by default)

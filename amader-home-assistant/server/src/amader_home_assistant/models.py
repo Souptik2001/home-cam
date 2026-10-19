@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     String,
     Text,
     UniqueConstraint,
@@ -30,7 +31,15 @@ class Base(DeclarativeBase):
 
 class DoorbellEvent(Base):
     __tablename__ = "doorbell_events"
-    __table_args__ = (UniqueConstraint("source_id", "nonce"),)
+    __table_args__ = (
+        UniqueConstraint("source_id", "nonce"),
+        Index(
+            "ix_doorbell_events_pagination",
+            "occurred_at",
+            "received_at",
+            "id",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     source_id: Mapped[str] = mapped_column(String(128), index=True)

@@ -7,11 +7,13 @@ class EventsScreen extends StatefulWidget {
   const EventsScreen({
     required this.repository,
     required this.onOpenCamera,
+    required this.onOpenEvent,
     super.key,
   });
 
   final EventRepository repository;
   final VoidCallback onOpenCamera;
+  final ValueChanged<DoorbellEvent> onOpenEvent;
 
   @override
   State<EventsScreen> createState() => _EventsScreenState();
@@ -115,6 +117,11 @@ class _EventsScreenState extends State<EventsScreen> {
         final localTime = event.occurredAt.toLocal();
         return Card(
           child: ListTile(
+            onTap: () => widget.onOpenEvent(event),
+            trailing: const Tooltip(
+              message: 'Open camera history',
+              child: Icon(Icons.history),
+            ),
             leading: const CircleAvatar(child: Icon(Icons.doorbell_outlined)),
             title: Text(
               event.title?.isNotEmpty == true ? event.title! : 'Doorbell event',

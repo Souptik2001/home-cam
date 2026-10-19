@@ -1,4 +1,5 @@
 const TOKEN_KEY = "amader-home-token";
+const CAMERA_ORIGIN = "https://camera.souptik.dev";
 let token = localStorage.getItem(TOKEN_KEY);
 let cameraUrl = null;
 
@@ -76,12 +77,48 @@ function base64ToUint8Array(value) {
   return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
 }
 
+function buildCameraHistoryUrl(baseUrl, occurredAt) {
+  const target = new URL(baseUrl);
+  if (target.protocol !== "https:" || target.origin !== CAMERA_ORIGIN) {
+    throw new Error("Camera history link is unavailable.");
+  }
+  const camera = target.hash.slice(1).trim();
+  const timestamp = Math.floor(new Date(occurredAt).getTime() / 1000);
+  if (!camera || !Number.isFinite(timestamp)) {
+    throw new Error("Camera history link is unavailable.");
+  }
+  target.pathname = "/review";
+  target.search = "";
+  target.searchParams.set("timestamp", `${camera}_${timestamp}`);
+  target.hash = "";
+  return target.href;
+}
+
+function openEventHistory(event) {
+  if (!cameraUrl) return;
+  try {
+    window.location.assign(buildCameraHistoryUrl(cameraUrl, event.occurred_at));
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
 function renderEvents(events) {
   eventsList.replaceChildren();
   emptyState.classList.toggle("hidden", events.length !== 0);
   for (const event of events) {
     const item = document.createElement("li");
     item.className = "event";
+    item.tabIndex = 0;
+    item.setAttribute("role", "link");
+    item.setAttribute("aria-label", "Open camera history at this event");
+    item.addEventListener("click", () => openEventHistory(event));
+    item.addEventListener("keydown", (keyEvent) => {
+      if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+        keyEvent.preventDefault();
+        openEventHistory(event);
+      }
+    });
 
     const icon = document.createElement("span");
     icon.className = "event-icon";
@@ -209,7 +246,7 @@ document.querySelector("#disconnect-button").addEventListener("click", async () 
 });
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js?v=3").catch(() => {
+  navigator.serviceWorker.register("/sw.js?v=4").catch(() => {
     setStatus("The notification service could not start.", true);
   });
 }

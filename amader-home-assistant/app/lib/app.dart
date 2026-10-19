@@ -49,13 +49,16 @@ class _AmaderHomeAssistantAppState extends State<AmaderHomeAssistantApp> {
     if (route == AppRoute.camera) unawaited(_openCamera());
   }
 
-  Future<void> _openCamera() async {
+  Future<void> _openCamera([DateTime? occurredAt]) async {
     final apiClient = _apiClient;
     final navigator = _navigatorKey.currentState;
     if (apiClient == null || navigator == null) return;
     try {
-      final cameraUri = await ApiCameraConfigRepository(apiClient)
+      final configuredUri = await ApiCameraConfigRepository(apiClient)
           .fetchCameraUri();
+      final cameraUri = occurredAt == null
+          ? configuredUri
+          : buildCameraHistoryUri(configuredUri, occurredAt);
       if (!mounted) return;
       await navigator.push(
         MaterialPageRoute<void>(
@@ -122,6 +125,7 @@ class _AmaderHomeAssistantAppState extends State<AmaderHomeAssistantApp> {
           return EventsScreen(
             repository: ApiEventRepository(apiClient),
             onOpenCamera: () => unawaited(_openCamera()),
+            onOpenEvent: (event) => unawaited(_openCamera(event.occurredAt)),
           );
         },
       ),

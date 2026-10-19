@@ -5,7 +5,8 @@ Flutter Android/iOS client for the Amader Home Assistant doorbell. Mobile v1 inc
 - first-run server URL and pairing-code setup;
 - session-token storage with `flutter_secure_storage`;
 - authenticated event history, newest first, with local date/time and loading, refresh, empty, and error states;
-- an in-app webview for `https://camera.souptik.dev` with an external-browser fallback;
+- event-row links to Frigate 0.18+ History for the configured camera at the exact event timestamp;
+- camera and notification navigation through the authenticated system browser;
 - notification route parsing so a `/camera` payload opens the Camera screen;
 - optional Firebase Messaging registration and device-registration API calls.
 

@@ -3,7 +3,7 @@ name: home-cam
 services:
   frigate:
     container_name: frigate
-    image: ${FRIGATE_IMAGE:-ghcr.io/blakeblackshear/frigate:0.17.1}
+    image: ${FRIGATE_IMAGE:-ghcr.io/blakeblackshear/frigate:0.18.2}
     restart: unless-stopped
     stop_grace_period: 30s
     shm_size: "1gb"

@@ -81,7 +81,7 @@ Bearer-protected household endpoints:
 - `GET /api/v1/events?limit=50` (newest first; maximum 200)
 - `POST /api/v1/devices`
 - `PUT /api/v1/devices/{device_id}`
-- `GET /api/v1/camera/config` (returns `https://camera.souptik.dev` by default)
+- `GET /api/v1/camera/config` (returns `https://camera.souptik.dev/#pi_cam_2` by default)
 - `GET /api/v1/push/vapid-public-key`
 - `POST /api/v1/push/subscriptions`
 - `POST /api/v1/session/disconnect`

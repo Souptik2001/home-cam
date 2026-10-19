@@ -11,7 +11,7 @@ amader-home-assistant/
 └── compose.yaml
 ```
 
-The live camera destination is `https://camera.souptik.dev`. The public application origin is `https://amader-home-assistant.souptik.dev`.
+The live doorbell-camera destination is `https://camera.souptik.dev/#pi_cam_2`. The public application origin is `https://amader-home-assistant.souptik.dev`.
 
 ## Client architecture
 
@@ -46,7 +46,7 @@ The origin remains non-public and Cloudflare Tunnel forwards only the applicatio
 - One-time pairing, protected API sessions, and pairing throttling
 - Installable responsive PWA with iPhone Home Screen support
 - Standards-based encrypted Web Push using private VAPID keys
-- Notification taps opening `https://camera.souptik.dev`
+- Notification taps opening `https://camera.souptik.dev/#pi_cam_2`
 - Native Android application and optional Firebase Cloud Messaging
 - Per-device notification delivery-attempt logging
 - Restricted camera navigation and HTTPS-only mobile server configuration
@@ -92,7 +92,7 @@ After installation and pairing:
 2. Clear Recent Apps and repeat the test.
 3. Lock the phone and repeat immediately.
 4. Leave the phone locked and untouched for at least 15–20 minutes, then repeat.
-5. Verify sound/vibration and confirm that tapping the alert opens `https://camera.souptik.dev`.
+5. Verify sound/vibration and confirm that tapping the alert opens `https://camera.souptik.dev/#pi_cam_2`.
 
 Wireless Debugging or ADB is not part of normal setup. It is needed only for focused diagnostics if registration or locked-screen delivery fails after the settings above have been checked.
 

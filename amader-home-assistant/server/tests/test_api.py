@@ -178,7 +178,7 @@ def test_camera_config_returns_public_https_url(
     response = client.get("/api/v1/camera/config", headers=auth_header(token))
 
     assert response.status_code == 200
-    assert response.json() == {"base_url": "https://camera.souptik.dev"}
+    assert response.json() == {"base_url": "https://camera.souptik.dev/#pi_cam_2"}
 
 
 def test_signed_ingest_is_idempotent_and_events_are_newest_first(

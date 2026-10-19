@@ -173,7 +173,7 @@ def test_doorbell_event_routes_web_device_to_web_push_sender(
     assert len(web_sender.calls) == 1
     stored_subscription, message = web_sender.calls[0]
     assert json.loads(stored_subscription) == subscription
-    assert message.data["camera_url"] == "https://camera.souptik.dev"
+    assert message.data["camera_url"] == "https://camera.souptik.dev/#pi_cam_2"
     assert message.data["route"] == "/camera"
     with sqlite3.connect(database_path) as connection:
         attempt = connection.execute(

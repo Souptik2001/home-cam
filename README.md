@@ -51,7 +51,7 @@ Let's set it up as the mothership.
   - `docker compose config --quiet`
   - `docker compose up -d`
   - `docker compose ps`
-- The pinned deployment uses Frigate `0.17.1`, low streams at 640×360 for processing, high streams for recording, object detection disabled, and three-day motion retention.
+- The pinned deployment uses Frigate `0.18.2`, low streams at 640×360 for processing, high streams for recording, object detection disabled, and three-day motion retention.
 
 Your authenticated camera UI is available at `https://<FRIGATE_BIND_IP>:<FRIGATE_PORT>` (port `8971` by default). Frigate uses a self-signed certificate unless you provide your own, so a browser warning is expected on a fresh LAN deployment. Complete Frigate's first-user setup before relying on LAN access. Port `5000` is intentionally not published to the host because it is Frigate's unauthenticated internal endpoint.
 

@@ -114,7 +114,9 @@ button.primary, form button { border-color: #14b8a6; background: #0f766e; }
   padding: 0.85rem;
   border-radius: 0.9rem;
   background: rgba(13, 61, 52, 0.54);
+  cursor: pointer;
 }
+.event:hover, .event:focus-visible { background: rgba(19, 78, 74, 0.8); outline: 2px solid #5eead4; outline-offset: 2px; }
 .event-icon { display: grid; width: 2.6rem; height: 2.6rem; place-items: center; border-radius: 50%; background: #134e4a; }
 .event strong, .event time { display: block; }
 .event time { margin-top: 0.16rem; color: #9cc8be; font-size: 0.82rem; }

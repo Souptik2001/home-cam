@@ -49,6 +49,42 @@ void main() {
     },
   );
 
+  test('builds a Frigate History link for the configured camera and event', () {
+    final uri = buildCameraHistoryUri(
+      Uri.parse('https://camera.souptik.dev/#pi_cam_2'),
+      DateTime.parse('2026-10-19T17:43:46Z'),
+    );
+
+    expect(
+      uri.toString(),
+      'https://camera.souptik.dev/review?timestamp=pi_cam_2_1792431826',
+    );
+  });
+
+  test('rejects a History link when the camera key is missing', () {
+    expect(
+      () => buildCameraHistoryUri(
+        Uri.parse('https://camera.souptik.dev'),
+        DateTime.parse('2026-10-19T17:43:46Z'),
+      ),
+      throwsFormatException,
+    );
+  });
+
+  test('rejects camera URLs outside the approved origin', () {
+    expect(
+      () => parseCameraUri('https://attacker.example/#pi_cam_2'),
+      throwsFormatException,
+    );
+    expect(
+      () => buildCameraHistoryUri(
+        Uri.parse('https://attacker.example/#pi_cam_2'),
+        DateTime.parse('2026-10-19T17:43:46Z'),
+      ),
+      throwsFormatException,
+    );
+  });
+
   test('rejects non-HTTPS camera URLs returned by the server', () {
     expect(
       () => parseCameraUri('http://camera.souptik.dev'),

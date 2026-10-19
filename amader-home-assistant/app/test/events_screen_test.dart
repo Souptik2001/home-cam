@@ -36,7 +36,11 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: EventsScreen(repository: repository, onOpenCamera: () {}),
+        home: EventsScreen(
+          repository: repository,
+          onOpenCamera: () {},
+          onOpenEvent: (_) {},
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -47,12 +51,40 @@ void main() {
     expect(find.byTooltip('Refresh events'), findsOneWidget);
   });
 
+  testWidgets('tapping an event opens its camera History timestamp', (
+    tester,
+  ) async {
+    final event = DoorbellEvent(
+      id: 'ring',
+      type: 'doorbell',
+      title: 'Front door',
+      occurredAt: DateTime.parse('2026-10-19T17:43:46Z'),
+    );
+    DoorbellEvent? openedEvent;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsScreen(
+          repository: FakeEventRepository([event]),
+          onOpenCamera: () {},
+          onOpenEvent: (value) => openedEvent = value,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Front door'));
+    expect(openedEvent, same(event));
+    expect(find.byTooltip('Open camera history'), findsOneWidget);
+  });
+
   testWidgets('event history displays empty and error states', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: EventsScreen(
           repository: FakeEventRepository(const []),
           onOpenCamera: () {},
+          onOpenEvent: (_) {},
         ),
       ),
     );
@@ -67,6 +99,7 @@ void main() {
             error: Exception('offline'),
           ),
           onOpenCamera: () {},
+          onOpenEvent: (_) {},
         ),
       ),
     );

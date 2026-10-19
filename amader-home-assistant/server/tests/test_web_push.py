@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sqlite3
+import subprocess
 
+import pytest
 from conftest import RecordingPushSender, auth_header, signed_ingest
 from fastapi.testclient import TestClient
 
@@ -20,23 +23,59 @@ def test_pwa_assets_are_served_with_installable_manifest(client: TestClient) -> 
     assert "PRIVATE DOORBELL" not in index.text
     assert "Doorbell history and instant camera access." not in index.text
     assert 'rel="manifest"' in index.text
-    assert 'href="/styles.css?v=3"' in index.text
-    assert 'src="/app.js?v=3"' in index.text
+    assert 'href="/styles.css?v=4"' in index.text
+    assert 'src="/app.js?v=4"' in index.text
     assert manifest.status_code == 200
     assert manifest.json()["display"] == "standalone"
     assert manifest.json()["start_url"] == "/"
     assert app_script.status_code == 200
-    assert 'serviceWorker.register("/sw.js?v=3")' in app_script.text
+    assert 'serviceWorker.register("/sw.js?v=4")' in app_script.text
+    assert "buildCameraHistoryUrl" in app_script.text
+    assert 'item.addEventListener("click"' in app_script.text
     assert service_worker.status_code == 200
-    assert 'const CACHE = "amader-home-v3"' in service_worker.text
-    assert '"/styles.css?v=3"' in service_worker.text
-    assert '"/app.js?v=3"' in service_worker.text
+    assert 'const CACHE = "amader-home-v4"' in service_worker.text
+    assert '"/styles.css?v=4"' in service_worker.text
+    assert '"/app.js?v=4"' in service_worker.text
     assert "notificationclick" in service_worker.text
     assert (
         service_worker.headers["cache-control"] == "no-store, no-cache, must-revalidate"
     )
     assert service_worker.headers["cloudflare-cdn-cache-control"] == "no-store"
     assert service_worker.headers["service-worker-allowed"] == "/"
+
+
+def test_pwa_history_link_uses_exact_timestamp_and_rejects_other_origins(
+    client: TestClient,
+) -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required for the browser URL behavior test")
+    assert node is not None
+
+    source = client.get("/app.js").text
+    start = source.index("function buildCameraHistoryUrl")
+    end = source.index("\n\nfunction openEventHistory", start)
+    function_source = source[start:end]
+    script = f"""
+const CAMERA_ORIGIN = "https://camera.souptik.dev";
+{function_source}
+const expected = "https://camera.souptik.dev/review?timestamp=pi_cam_2_1792431826";
+const actual = buildCameraHistoryUrl(
+  "https://camera.souptik.dev/#pi_cam_2",
+  "2026-10-19T17:43:46Z",
+);
+if (actual !== expected) throw new Error(`${{actual}} != ${{expected}}`);
+for (const unsafe of [
+  "http://camera.souptik.dev/#pi_cam_2",
+  "https://attacker.example/#pi_cam_2",
+]) {{
+  let rejected = false;
+  try {{ buildCameraHistoryUrl(unsafe, "2026-10-19T17:43:46Z"); }}
+  catch (_) {{ rejected = true; }}
+  if (!rejected) throw new Error(`unsafe camera URL accepted: ${{unsafe}}`);
+}}
+"""
+    subprocess.run([node, "-e", script], check=True, capture_output=True, text=True)
 
 
 def test_authenticated_pwa_can_read_vapid_key_and_register_subscription(

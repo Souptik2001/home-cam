@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -36,6 +37,22 @@ class Settings(BaseSettings):
         default_factory=lambda: ["web.push.apple.com", "fcm.googleapis.com"]
     )
     web_push_timeout_seconds: float = Field(default=5.0, ge=1.0, le=30.0)
+
+    @field_validator("camera_base_url")
+    @classmethod
+    def validate_camera_base_url(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme != "https"
+            or parsed.netloc != "camera.souptik.dev"
+            or parsed.path not in ("", "/")
+            or parsed.query
+            or not parsed.fragment.strip()
+        ):
+            raise ValueError(
+                "Camera URL must use the approved HTTPS origin and identify a camera"
+            )
+        return value
 
     @field_validator("web_push_vapid_public_key")
     @classmethod

@@ -37,6 +37,24 @@ def test_structured_security_and_cors_settings_load_from_environment(
     assert settings.allowed_origins == ["https://app.example.test"]
 
 
+def test_camera_url_is_restricted_to_the_approved_https_origin() -> None:
+    assert (
+        Settings(
+            _env_file=None,
+            camera_base_url="https://camera.souptik.dev/#pi_cam_2",
+        ).camera_base_url
+        == "https://camera.souptik.dev/#pi_cam_2"
+    )
+
+    for url in (
+        "http://camera.souptik.dev/#pi_cam_2",
+        "https://attacker.example/#pi_cam_2",
+        "https://camera.souptik.dev/",
+    ):
+        with pytest.raises(ValidationError, match="approved HTTPS origin"):
+            Settings(_env_file=None, camera_base_url=url)
+
+
 def test_web_push_vapid_public_key_accepts_url_safe_uncompressed_p256_key() -> None:
     key = "B" + "a" * 86
 

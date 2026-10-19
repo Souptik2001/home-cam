@@ -34,7 +34,7 @@ void main() {
         httpClient: MockClient((request) async {
           captured = request;
           return http.Response(
-            jsonEncode({'base_url': 'https://camera.souptik.dev'}),
+            jsonEncode({'base_url': 'https://camera.souptik.dev/#pi_cam_2'}),
             200,
             headers: {'content-type': 'application/json'},
           );
@@ -43,7 +43,7 @@ void main() {
 
       final uri = await ApiCameraConfigRepository(client).fetchCameraUri();
 
-      expect(uri, Uri.https('camera.souptik.dev'));
+      expect(uri, Uri.parse('https://camera.souptik.dev/#pi_cam_2'));
       expect(captured.url.path, '/api/v1/camera/config');
       expect(captured.headers['authorization'], 'Bearer token');
     },

@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     pairing_rate_limit_max_clients: int = Field(default=2048, ge=16, le=100000)
     trusted_proxy_networks: list[str] = Field(default_factory=list)
     allowed_origins: list[str] = Field(default_factory=list)
-    camera_base_url: str = "https://camera.souptik.dev"
+    camera_base_url: str = "https://camera.souptik.dev/#pi_cam_2"
     firebase_credentials_path: Path | None = None
     firebase_credentials_json: SecretStr | None = None
     ios_critical_alerts_enabled: bool = False

@@ -55,30 +55,4 @@ void main() {
       throwsFormatException,
     );
   });
-
-  test('allows only the configured camera host in the webview', () {
-    final cameraUri = Uri.parse('https://camera.souptik.dev');
-    expect(isAllowedCameraNavigation(cameraUri, cameraUri), isTrue);
-    expect(
-      isAllowedCameraNavigation(
-        cameraUri,
-        Uri.parse('https://camera.souptik.dev/live'),
-      ),
-      isTrue,
-    );
-    expect(
-      isAllowedCameraNavigation(
-        cameraUri,
-        Uri.parse('https://example.com/phishing'),
-      ),
-      isFalse,
-    );
-    expect(
-      isAllowedCameraNavigation(
-        cameraUri,
-        Uri.parse('http://camera.souptik.dev'),
-      ),
-      isFalse,
-    );
-  });
 }

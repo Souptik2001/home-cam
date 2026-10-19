@@ -11,8 +11,8 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="icon" href="/icons/icon-192.png" />
-    <link rel="stylesheet" href="/styles.css?v=4" />
-    <script src="/app.js?v=4" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=5" />
+    <script src="/app.js?v=5" defer></script>
   </head>
   <body>
     <main class="shell">
@@ -57,6 +57,12 @@
             <button id="refresh-button" class="icon-button" aria-label="Refresh events">↻</button>
           </div>
           <ol id="events" class="events"></ol>
+          <div id="events-sentinel" class="events-sentinel hidden" aria-live="polite">
+            <span id="events-loading">Loading older events…</span>
+            <button id="events-retry" class="text-button hidden" type="button">
+              Retry loading older events
+            </button>
+          </div>
           <p id="empty-state" class="subtle hidden">No doorbell events yet.</p>
         </section>
 

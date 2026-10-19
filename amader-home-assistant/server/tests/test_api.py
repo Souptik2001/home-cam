@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 import hashlib
+import json
 import sqlite3
 import time
 
@@ -207,15 +209,138 @@ def test_signed_ingest_is_idempotent_and_events_are_newest_first(
     assert duplicate.json()["id"] == older.json()["id"]
     assert duplicate.json()["duplicate"] is True
 
-    events = client.get("/api/v1/events", headers=auth_header(token))
+    events = client.get(
+        "/api/v1/events?paginated=true&limit=20", headers=auth_header(token)
+    )
     assert events.status_code == 200
-    assert [event["id"] for event in events.json()] == [
+    payload = events.json()
+    assert [event["id"] for event in payload["events"]] == [
         newer.json()["id"],
         older.json()["id"],
     ]
-    assert events.json()[1]["metadata"] == {"motion": True}
-    assert events.json()[0]["occurred_at"].endswith("Z")
-    assert events.json()[0]["received_at"].endswith("Z")
+    assert payload["next_cursor"] is None
+    assert payload["events"][1]["metadata"] == {"motion": True}
+    assert payload["events"][0]["occurred_at"].endswith("Z")
+    assert payload["events"][0]["received_at"].endswith("Z")
+
+    legacy = client.get("/api/v1/events", headers=auth_header(token))
+    assert [event["id"] for event in legacy.json()] == [
+        newer.json()["id"],
+        older.json()["id"],
+    ]
+
+
+def test_events_are_cursor_paginated_without_duplicates(
+    paired_client: tuple[TestClient, str],
+) -> None:
+    client, token = paired_client
+    created = [
+        signed_ingest(
+            client,
+            {"occurred_at": f"2026-10-17T10:0{minute}:00Z"},
+            nonce=f"page-{minute}",
+        ).json()["id"]
+        for minute in range(5)
+    ]
+
+    first = client.get(
+        "/api/v1/events?paginated=true&limit=2",
+        headers=auth_header(token),
+    )
+    second = client.get(
+        "/api/v1/events",
+        params={
+            "paginated": "true",
+            "limit": 2,
+            "cursor": first.json()["next_cursor"],
+        },
+        headers=auth_header(token),
+    )
+    third = client.get(
+        "/api/v1/events",
+        params={
+            "paginated": "true",
+            "limit": 2,
+            "cursor": second.json()["next_cursor"],
+        },
+        headers=auth_header(token),
+    )
+
+    assert [event["id"] for event in first.json()["events"]] == created[4:2:-1]
+    assert [event["id"] for event in second.json()["events"]] == created[2:0:-1]
+    assert [event["id"] for event in third.json()["events"]] == [created[0]]
+    assert first.json()["next_cursor"]
+    assert second.json()["next_cursor"]
+    assert third.json()["next_cursor"] is None
+    assert (
+        len(
+            {
+                event["id"]
+                for page in (first, second, third)
+                for event in page.json()["events"]
+            }
+        )
+        == 5
+    )
+
+    invalid = client.get(
+        "/api/v1/events",
+        params={
+            "paginated": "true",
+            "limit": 20,
+            "cursor": "not-a-valid-cursor",
+        },
+        headers=auth_header(token),
+    )
+    assert invalid.status_code == 422
+
+
+def test_events_preserve_legacy_explicit_limits_and_require_pagination_opt_in(
+    paired_client: tuple[TestClient, str],
+) -> None:
+    client, token = paired_client
+
+    explicit_fifty = client.get("/api/v1/events?limit=50", headers=auth_header(token))
+    explicit_two_hundred = client.get(
+        "/api/v1/events?limit=200", headers=auth_header(token)
+    )
+    oversized_page = client.get(
+        "/api/v1/events?paginated=true&limit=101", headers=auth_header(token)
+    )
+
+    assert explicit_fifty.status_code == 200
+    assert isinstance(explicit_fifty.json(), list)
+    assert explicit_two_hundred.status_code == 200
+    assert isinstance(explicit_two_hundred.json(), list)
+    assert oversized_page.status_code == 422
+
+
+def test_events_cursor_rejects_boundary_datetime_overflow(
+    paired_client: tuple[TestClient, str],
+) -> None:
+    client, token = paired_client
+    payload = (
+        base64.urlsafe_b64encode(
+            json.dumps(
+                {
+                    "occurred_at": "0001-01-01T00:00:00+23:59",
+                    "received_at": "2026-10-17T10:00:00Z",
+                    "id": "event-id",
+                }
+            ).encode()
+        )
+        .decode()
+        .rstrip("=")
+    )
+
+    response = client.get(
+        "/api/v1/events",
+        params={"paginated": "true", "limit": 20, "cursor": payload},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "invalid events cursor"
 
 
 def test_ingest_rejects_bad_signature_unknown_source_and_stale_timestamp(

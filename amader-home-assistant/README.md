@@ -47,6 +47,7 @@ The origin remains non-public and Cloudflare Tunnel forwards only the applicatio
 - Installable responsive PWA with iPhone Home Screen support
 - Standards-based encrypted Web Push using private VAPID keys
 - Notification taps opening `https://camera.souptik.dev/#pi_cam_2`
+- Event history grouped by local calendar date with cursor-based lazy loading on Android and the PWA
 - Event-row taps opening Frigate 0.18+ History for `pi_cam_2` at the event's exact `occurred_at` timestamp
 - Native Android application and optional Firebase Cloud Messaging
 - Per-device notification delivery-attempt logging

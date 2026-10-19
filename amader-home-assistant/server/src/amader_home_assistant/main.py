@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import hmac
 import ipaddress
@@ -19,7 +21,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
@@ -49,6 +51,7 @@ from amader_home_assistant.schemas import (
     DeviceResponse,
     DeviceWrite,
     DoorbellIngest,
+    EventPageResponse,
     EventResponse,
     IngestResponse,
     PairRequest,
@@ -69,6 +72,44 @@ def as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def encode_event_cursor(event: DoorbellEvent) -> str:
+    payload = json.dumps(
+        {
+            "occurred_at": as_utc(event.occurred_at).isoformat(),
+            "received_at": as_utc(event.received_at).isoformat(),
+            "id": event.id,
+        },
+        separators=(",", ":"),
+    ).encode()
+    return base64.urlsafe_b64encode(payload).decode().rstrip("=")
+
+
+def decode_event_cursor(value: str) -> tuple[datetime, datetime, str]:
+    try:
+        padded = value + "=" * (-len(value) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded).decode())
+        occurred_at = datetime.fromisoformat(payload["occurred_at"])
+        received_at = datetime.fromisoformat(payload["received_at"])
+        event_id = payload["id"]
+        if not isinstance(event_id, str) or not event_id:
+            raise ValueError
+        cursor = as_utc(occurred_at), as_utc(received_at), event_id
+    except (
+        binascii.Error,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+        OverflowError,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="invalid events cursor",
+        ) from None
+    return cursor
 
 
 def create_app(
@@ -373,20 +414,58 @@ def create_app(
         db.commit()
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-    @app.get("/api/v1/events", response_model=list[EventResponse])
+    @app.get(
+        "/api/v1/events",
+        response_model=EventPageResponse | list[EventResponse],
+    )
     def list_events(
-        limit: int = Query(default=50, ge=1, le=200),
+        limit: int | None = Query(default=None, ge=1, le=200),
+        paginated: bool = Query(default=False),
+        cursor: str | None = Query(default=None, min_length=1, max_length=1024),
         _paired_session: PairedSession = Depends(require_session),
         db: Session = Depends(get_db),
-    ) -> list[EventResponse]:
-        events = db.scalars(
-            select(DoorbellEvent)
-            .order_by(
-                DoorbellEvent.occurred_at.desc(), DoorbellEvent.received_at.desc()
+    ) -> EventPageResponse | list[EventResponse]:
+        if cursor is not None and not paginated:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="events cursor requires paginated=true",
             )
-            .limit(limit)
+        if paginated and limit is not None and limit > 100:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="paginated events limit must not exceed 100",
+            )
+        page_size = limit or 50
+        query = select(DoorbellEvent)
+        if cursor is not None:
+            occurred_at, received_at, event_id = decode_event_cursor(cursor)
+            query = query.where(
+                or_(
+                    DoorbellEvent.occurred_at < occurred_at,
+                    and_(
+                        DoorbellEvent.occurred_at == occurred_at,
+                        DoorbellEvent.received_at < received_at,
+                    ),
+                    and_(
+                        DoorbellEvent.occurred_at == occurred_at,
+                        DoorbellEvent.received_at == received_at,
+                        DoorbellEvent.id < event_id,
+                    ),
+                )
+            )
+        events = db.scalars(
+            query.order_by(
+                DoorbellEvent.occurred_at.desc(),
+                DoorbellEvent.received_at.desc(),
+                DoorbellEvent.id.desc(),
+            ).limit(page_size + (1 if paginated else 0))
         ).all()
-        return [
+        has_more = len(events) > page_size
+        page_events = events[:page_size]
+        next_cursor = (
+            encode_event_cursor(page_events[-1]) if has_more and page_events else None
+        )
+        event_responses = [
             EventResponse(
                 id=event.id,
                 source_id=event.source_id,
@@ -395,8 +474,14 @@ def create_app(
                 received_at=as_utc(event.received_at),
                 metadata=event.payload_metadata,
             )
-            for event in events
+            for event in page_events
         ]
+        if not paginated:
+            return event_responses
+        return EventPageResponse(
+            events=event_responses,
+            next_cursor=next_cursor,
+        )
 
     @app.get("/api/v1/camera/config", response_model=CameraConfigResponse)
     def camera_config(

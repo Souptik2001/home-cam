@@ -20,12 +20,18 @@ class EventsScreen extends StatefulWidget {
 }
 
 class _EventsScreenState extends State<EventsScreen> {
+  final _scrollController = ScrollController();
   List<DoorbellEvent>? _events;
+  String? _nextCursor;
   Object? _error;
+  bool _loadingMore = false;
+  bool _loadMoreFailed = false;
+  int _requestGeneration = 0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _refresh();
   }
 
@@ -38,13 +44,68 @@ class _EventsScreenState extends State<EventsScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.extentAfter < 300) _loadMore();
+  }
+
   Future<void> _refresh() async {
-    setState(() => _error = null);
+    final generation = ++_requestGeneration;
+    setState(() {
+      _error = null;
+      _loadingMore = false;
+      _loadMoreFailed = false;
+      _nextCursor = null;
+    });
     try {
-      final events = await widget.repository.fetchEvents();
-      if (mounted) setState(() => _events = sortEventsNewestFirst(events));
+      final page = await widget.repository.fetchEvents();
+      if (!mounted || generation != _requestGeneration) return;
+      setState(() {
+        _events = sortEventsNewestFirst(page.events);
+        _nextCursor = page.nextCursor;
+      });
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted && generation == _requestGeneration) {
+        setState(() => _error = error);
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final cursor = _nextCursor;
+    if (cursor == null || _loadingMore) return;
+    final generation = _requestGeneration;
+    setState(() {
+      _loadingMore = true;
+      _loadMoreFailed = false;
+    });
+    try {
+      final page = await widget.repository.fetchEvents(cursor: cursor);
+      if (!mounted || generation != _requestGeneration) return;
+      final existing = _events ?? const <DoorbellEvent>[];
+      final ids = existing.map((event) => event.id).toSet();
+      setState(() {
+        _events = sortEventsNewestFirst([
+          ...existing,
+          ...page.events.where((event) => ids.add(event.id)),
+        ]);
+        _nextCursor = page.nextCursor;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (mounted && generation == _requestGeneration) {
+        setState(() {
+          _loadingMore = false;
+          _loadMoreFailed = true;
+        });
+      }
     }
   }
 
@@ -107,36 +168,85 @@ class _EventsScreenState extends State<EventsScreen> {
         ],
       );
     }
-    return ListView.separated(
+    final hasFooter = _nextCursor != null;
+    return ListView.builder(
+      controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(12),
-      itemCount: events.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemCount: events.length + (hasFooter ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index == events.length) return _loadMoreFooter();
         final event = events[index];
         final localTime = event.occurredAt.toLocal();
-        return Card(
-          child: ListTile(
-            onTap: () => widget.onOpenEvent(event),
-            trailing: const Tooltip(
-              message: 'Open camera history',
-              child: Icon(Icons.history),
-            ),
-            leading: const CircleAvatar(child: Icon(Icons.doorbell_outlined)),
-            title: Text(
-              event.title?.isNotEmpty == true ? event.title! : 'Doorbell event',
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (event.message?.isNotEmpty == true) Text(event.message!),
-                Text(DateFormat.yMMMd().add_jm().format(localTime)),
+        final showDate =
+            index == 0 ||
+            !_isSameLocalDate(events[index - 1].occurredAt, event.occurredAt);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (showDate) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+                  child: Text(
+                    DateFormat.yMMMMd().format(localTime),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
               ],
-            ),
+              Card(
+                child: ListTile(
+                  onTap: () => widget.onOpenEvent(event),
+                  trailing: const Tooltip(
+                    message: 'Open camera history',
+                    child: Icon(Icons.history),
+                  ),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.doorbell_outlined),
+                  ),
+                  title: Text(
+                    event.title?.isNotEmpty == true
+                        ? event.title!
+                        : 'Doorbell event',
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (event.message?.isNotEmpty == true)
+                        Text(event.message!),
+                      Text(DateFormat.jm().format(localTime)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
+  }
+
+  Widget _loadMoreFooter() {
+    if (_loadMoreFailed) {
+      return Center(
+        child: TextButton.icon(
+          onPressed: _loadMore,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Retry loading older events'),
+        ),
+      );
+    }
+    return const Padding(
+      padding: EdgeInsets.all(20),
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  bool _isSameLocalDate(DateTime first, DateTime second) {
+    final a = first.toLocal();
+    final b = second.toLocal();
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 }
 

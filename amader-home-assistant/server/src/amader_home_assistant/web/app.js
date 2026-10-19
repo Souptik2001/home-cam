@@ -2,11 +2,19 @@ const TOKEN_KEY = "amader-home-token";
 const CAMERA_ORIGIN = "https://camera.souptik.dev";
 let token = localStorage.getItem(TOKEN_KEY);
 let cameraUrl = null;
+let nextEventsCursor = null;
+let loadingEvents = false;
+let eventsGeneration = 0;
+let lastEventDateKey = null;
+let eventIds = new Set();
 
 const pairing = document.querySelector("#pairing");
 const dashboard = document.querySelector("#dashboard");
 const statusBox = document.querySelector("#status");
 const eventsList = document.querySelector("#events");
+const eventsSentinel = document.querySelector("#events-sentinel");
+const eventsLoading = document.querySelector("#events-loading");
+const eventsRetry = document.querySelector("#events-retry");
 const emptyState = document.querySelector("#empty-state");
 const pushButton = document.querySelector("#push-button");
 const iosInstall = document.querySelector("#ios-install");
@@ -103,12 +111,40 @@ function openEventHistory(event) {
   }
 }
 
-function renderEvents(events) {
-  eventsList.replaceChildren();
-  emptyState.classList.toggle("hidden", events.length !== 0);
+function buildEventsPagePath(cursor) {
+  const params = new URLSearchParams({ limit: "20", paginated: "true" });
+  if (cursor) params.set("cursor", cursor);
+  return `/api/v1/events?${params}`;
+}
+
+function eventDateKey(value) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function eventDateHeading(value) {
+  return new Date(value).toLocaleDateString([], { dateStyle: "long" });
+}
+
+function appendEvents(events) {
   for (const event of events) {
+    if (eventIds.has(event.id)) continue;
+    eventIds.add(event.id);
+    const dateKey = eventDateKey(event.occurred_at);
+    if (dateKey !== lastEventDateKey) {
+      const heading = document.createElement("li");
+      heading.className = "event-date";
+      heading.textContent = eventDateHeading(event.occurred_at);
+      eventsList.append(heading);
+      lastEventDateKey = dateKey;
+    }
+
     const item = document.createElement("li");
     item.className = "event";
+    item.dataset.eventId = event.id;
     item.tabIndex = 0;
     item.setAttribute("role", "link");
     item.setAttribute("aria-label", "Open camera history at this event");
@@ -130,13 +166,54 @@ function renderEvents(events) {
     const timestamp = document.createElement("time");
     const date = new Date(event.occurred_at);
     timestamp.dateTime = event.occurred_at;
-    timestamp.textContent = date.toLocaleString([], {
-      dateStyle: "medium",
-      timeStyle: "short",
+    timestamp.textContent = date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
     });
     details.append(title, timestamp);
     item.append(icon, details);
     eventsList.append(item);
+  }
+}
+
+async function loadEvents({ reset = false } = {}) {
+  if (!reset && loadingEvents) return false;
+  if (!reset && !nextEventsCursor) return false;
+  const generation = reset ? ++eventsGeneration : eventsGeneration;
+  const cursor = reset ? null : nextEventsCursor;
+  if (reset) nextEventsCursor = null;
+  loadingEvents = true;
+  eventsSentinel.classList.remove("hidden");
+  eventsLoading.classList.remove("hidden");
+  eventsRetry.classList.add("hidden");
+  try {
+    const response = await api(buildEventsPagePath(cursor));
+    if (generation !== eventsGeneration) return false;
+    const page = Array.isArray(response)
+      ? { events: response, next_cursor: null }
+      : response;
+    if (reset) {
+      eventsList.replaceChildren();
+      lastEventDateKey = null;
+      eventIds = new Set();
+    }
+    appendEvents(page.events || []);
+    nextEventsCursor = page.next_cursor || null;
+    emptyState.classList.toggle("hidden", eventsList.children.length !== 0);
+    eventsSentinel.classList.toggle("hidden", nextEventsCursor === null);
+    eventsLoading.classList.remove("hidden");
+    eventsRetry.classList.add("hidden");
+    setStatus("");
+    return true;
+  } catch (error) {
+    if (generation !== eventsGeneration) return false;
+    eventsSentinel.classList.remove("hidden");
+    eventsLoading.classList.add("hidden");
+    eventsRetry.classList.remove("hidden");
+    setStatus(error.message, true);
+    return false;
+  } finally {
+    if (generation === eventsGeneration) loadingEvents = false;
   }
 }
 
@@ -145,13 +222,12 @@ async function loadDashboard() {
   dashboard.classList.remove("hidden");
   iosInstall.classList.toggle("hidden", !(isIos() && !isStandalone()));
   try {
-    const [events, camera] = await Promise.all([
-      api("/api/v1/events"),
+    const [eventsLoaded, camera] = await Promise.all([
+      loadEvents({ reset: true }),
       api("/api/v1/camera/config"),
     ]);
     cameraUrl = camera.base_url;
-    renderEvents(events);
-    setStatus("");
+    if (eventsLoaded) setStatus("");
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -213,12 +289,11 @@ document.querySelector("#pair-form").addEventListener("submit", async (event) =>
 
 document.querySelector("#refresh-button").addEventListener("click", async () => {
   setStatus("Refreshing…");
-  try {
-    renderEvents(await api("/api/v1/events"));
-    setStatus("Updated");
-  } catch (error) {
-    setStatus(error.message, true);
-  }
+  if (await loadEvents({ reset: true })) setStatus("Updated");
+});
+
+eventsRetry.addEventListener("click", () => {
+  loadEvents({ reset: nextEventsCursor === null });
 });
 
 document.querySelector("#camera-button").addEventListener("click", () => {
@@ -245,8 +320,16 @@ document.querySelector("#disconnect-button").addEventListener("click", async () 
   }
 });
 
+const eventsObserver = new IntersectionObserver(
+  (entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) loadEvents();
+  },
+  { rootMargin: "300px" },
+);
+eventsObserver.observe(eventsSentinel);
+
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js?v=4").catch(() => {
+  navigator.serviceWorker.register("/sw.js?v=5").catch(() => {
     setStatus("The notification service could not start.", true);
   });
 }

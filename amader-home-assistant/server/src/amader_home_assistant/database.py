@@ -6,7 +6,7 @@ from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from amader_home_assistant.models import Base
+from amader_home_assistant.models import Base, DoorbellEvent
 
 
 def build_engine(database_url: str) -> Engine:
@@ -35,6 +35,8 @@ def build_engine(database_url: str) -> Engine:
 
 def create_schema(engine: Engine) -> None:
     Base.metadata.create_all(engine)
+    for index in DoorbellEvent.__table__.indexes:
+        index.create(bind=engine, checkfirst=True)
 
 
 def build_session_factory(engine: Engine) -> sessionmaker[Session]:

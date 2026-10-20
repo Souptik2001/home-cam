@@ -44,7 +44,13 @@ Firebase is disabled by default, so the project builds and tests without native 
 - Android: `android/app/google-services.json`
 - iOS: `ios/Runner/GoogleService-Info.plist`
 
-After supplying valid native configuration, enable the integration at build/run time:
+After supplying valid native configuration, run the release wrapper so Firebase Messaging cannot be accidentally omitted from a production APK:
+
+```sh
+FLUTTER=/path/to/flutter ./tool/build-release.sh
+```
+
+For local development, enable the same integration explicitly:
 
 ```sh
 flutter run --dart-define=ENABLE_FIREBASE_MESSAGING=true
@@ -59,7 +65,7 @@ Firebase delivery is not functional until valid Firebase native configuration, A
 ### Android
 
 ```sh
-flutter build apk
+FLUTTER=/path/to/flutter ./tool/build-release.sh
 ```
 
 The output is written under `build/app/outputs/flutter-apk/`.

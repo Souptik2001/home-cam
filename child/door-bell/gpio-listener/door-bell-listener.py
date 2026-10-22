@@ -138,7 +138,9 @@ def main() -> None:
         )
 
     # Keep GPIO 17 HIGH while idle and trigger when the input becomes LOW.
-    button = Button(GPIO_PIN, pull_up=True, bounce_time=0.1)
+    # rpi-lgpio requires the contact to stay stable for bounce_time. Keep this
+    # short so quick doorbell pulses are not discarded as contact bounce.
+    button = Button(GPIO_PIN, pull_up=True, bounce_time=0.01)
     button.when_pressed = lambda: send_doorbell_event(
         server_url,
         source_id,

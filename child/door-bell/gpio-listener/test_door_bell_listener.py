@@ -116,6 +116,28 @@ class SignedDoorbellEventTests(unittest.TestCase):
                 base64.urlsafe_b64encode(b"short").decode(),
             )
 
+    def test_listener_accepts_contacts_as_short_as_ten_milliseconds(self) -> None:
+        button = Mock()
+        environment = {
+            "AMADER_HOME_ASSISTANT_URL": "https://example.test",
+            "AMADER_DOORBELL_SOURCE": "front-door",
+            "AMADER_DOORBELL_HMAC_SECRET": "d" * 32,
+        }
+
+        with (
+            patch.dict(self.listener.os.environ, environment, clear=True),
+            patch.object(self.listener, "Button", return_value=button) as button_class,
+            patch.object(self.listener, "pause"),
+        ):
+            self.listener.main()
+
+        button_class.assert_called_once_with(
+            self.listener.GPIO_PIN,
+            pull_up=True,
+            bounce_time=0.01,
+        )
+        self.assertTrue(callable(button.when_pressed))
+
 
 if __name__ == "__main__":
     unittest.main()

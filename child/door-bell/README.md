@@ -1,6 +1,6 @@
 # Door Bell GPIO Listener
 
-This service watches GPIO 17 and submits a signed doorbell event to Amader Home Assistant when the input changes from HIGH to LOW. It runs directly under systemd on **Pi Cam 1**; Pi Cam 2 remains a camera-only node.
+This service watches GPIO 17 and submits a signed doorbell event to Amader Home Assistant when the input changes from HIGH to LOW. It runs directly under systemd on **Pi Cam 2**; Pi Cam 1 remains a camera-only node.
 
 The listener uses gpiozero's local `RPi.GPIO` pin factory backed by `rpi-lgpio`, so it does not need a separate GPIO daemon.
 
@@ -8,7 +8,7 @@ The listener uses gpiozero's local `RPi.GPIO` pin factory backed by `rpi-lgpio`,
 
 ```text
 GPIO17 connected to GND
-  → Pi Cam 1 listener
+  → Pi Cam 2 listener
   → signed HTTPS POST /api/v1/ingest/doorbell
   → durable event history
   → notification delivery to registered devices
@@ -60,7 +60,11 @@ PY'
 
 A successful request prints `Doorbell event delivered successfully!`, creates a history entry, and sends notifications to enabled registered devices. HTTP `401` means the source, timestamp, or signature was rejected. HTTP `422` means the event body was invalid.
 
-## Install on Pi Cam 1
+The GPIO debounce window is 10 milliseconds. With the `rpi-lgpio` backend the
+contact must remain stable for that window, so a larger value can discard very
+short doorbell pulses entirely.
+
+## Install on Pi Cam 2
 
 The commands assume the Raspberry Pi user is `admin`:
 
